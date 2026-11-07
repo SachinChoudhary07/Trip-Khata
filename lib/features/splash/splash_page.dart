@@ -77,10 +77,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
               ScaleTransition(
                 scale: pop,
                 child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(color: AppColors.yellow, borderRadius: BorderRadius.circular(28)),
-                  child: const Icon(Icons.route_rounded, size: 52, color: Color(0xFF2A1D00)),
+                  width: 104,
+                  height: 104,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 24, offset: Offset(0, 10))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Image.asset('assets/brand/logo.png', width: 104, height: 104),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

@@ -10,6 +10,7 @@ flutter create --org com.tripkhata --project-name tripkhata --platforms=android 
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 dart run tool/patch_android.dart
+dart run flutter_launcher_icons
 flutter test
 flutter run
 ```

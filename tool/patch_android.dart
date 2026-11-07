@@ -52,6 +52,7 @@ void main() {
   if (!xml.contains('ScheduledNotificationReceiver')) {
     xml = xml.replaceFirst('</application>', '$receivers\n    </application>');
   }
+  xml = xml.replaceFirst(RegExp(r'android:label="[^"]*"'), 'android:label="TripKhata"');
   f.writeAsStringSync(xml);
   _patchGradle();
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');

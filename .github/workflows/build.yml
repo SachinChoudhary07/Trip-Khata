@@ -25,6 +25,7 @@ jobs:
           fi
       - run: flutter pub get
       - run: dart run tool/patch_android.dart
+      - run: dart run flutter_launcher_icons
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter test
       - run: flutter build apk --release
