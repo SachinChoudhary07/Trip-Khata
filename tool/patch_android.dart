@@ -9,10 +9,7 @@ void main() {
     exit(1);
   }
   var xml = f.readAsStringSync();
-  if (xml.contains('android.speech.RecognitionService')) {
-    stdout.writeln('Manifest already patched.');
-    return;
-  }
+
   const upi = '''
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -21,14 +18,23 @@ void main() {
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>''';
-  if (xml.contains('<queries>')) {
+  if (xml.contains('android.speech.RecognitionService')) {
+    // queries already added
+  } else if (xml.contains('<queries>')) {
     xml = xml.replaceFirst('<queries>', '<queries>\n$upi');
   } else {
     xml = xml.replaceFirst('</manifest>', '    <queries>\n$upi\n    </queries>\n</manifest>');
   }
-  if (!xml.contains('android.permission.RECORD_AUDIO')) {
-    xml = xml.replaceFirst('<application',
-        '<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application');
+  const perms = [
+    'android.permission.INTERNET',
+    'android.permission.RECORD_AUDIO',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_COARSE_LOCATION',
+  ];
+  for (final p in perms) {
+    if (!xml.contains(p)) {
+      xml = xml.replaceFirst('<application', '<uses-permission android:name="$p" />\n    <application');
+    }
   }
   f.writeAsStringSync(xml);
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');

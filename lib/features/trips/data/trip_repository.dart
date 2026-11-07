@@ -258,7 +258,23 @@ class TripRepository {
       return [for (final m in ids) NewShare(m, base + (m == (ids.contains(payer) ? payer : ids.first) ? left : 0))];
     }
 
-    Future<void> add(String title, int rupees, String cat, String payer, {List<String>? only, int daysAgo = 0, bool voice = false}) {
+    Future<String> place(String name, String type, double lat, double lng, int daysAgo, int hour) async {
+      final id = _uuid.v4();
+      final d = now.subtract(Duration(days: daysAgo));
+      await _db.into(_db.places).insert(PlacesCompanion.insert(
+            id: id,
+            tripId: tripId,
+            name: name,
+            type: type,
+            lat: Value(lat),
+            lng: Value(lng),
+            visitedAt: Value(DateTime(d.year, d.month, d.day, hour)),
+          ));
+      return id;
+    }
+
+    Future<void> add(String title, int rupees, String cat, String payer,
+        {List<String>? only, int daysAgo = 0, bool voice = false, String? at}) {
       final ids = only ?? all;
       final amount = rupees * 100;
       return addExpense(
@@ -269,16 +285,25 @@ class TripRepository {
         paidBy: payer,
         shares: equal(amount, ids, payer),
         byVoice: voice,
+        placeId: at,
         spentAt: now.subtract(Duration(days: daysAgo, hours: daysAgo == 0 ? 1 : 0)),
       );
     }
 
-    await add('Petrol', 2000, 'fuel', id('Neha'), daysAgo: 1);
-    await add('Chai and poha', 420, 'snacks', id('Priya'), only: [id('Priya'), id('Rahul'), id('Aman'), id('Neha'), id('You')], daysAgo: 1, voice: true);
-    await add('Petrol', 1500, 'fuel', id('Rahul'), voice: true);
+    await place('Left Indore', 'other', 22.7196, 75.8577, 1, 6);
+    final dhaba = await place('Highway dhaba', 'snacks', 23.1000, 75.4000, 1, 8);
+    final ratlam = await place('Petrol pump, Ratlam', 'fuel', 23.3315, 75.0367, 1, 10);
+    final fort = await place('Chittorgarh Fort', 'tickets', 24.8887, 74.6269, 0, 11);
+    final thali = await place('Shree Thal, Chittorgarh', 'food', 24.8790, 74.6290, 0, 13);
+    final hotel = await place('Lake view hotel, Udaipur', 'stay', 24.5854, 73.7125, 0, 18);
+
+    await add('Petrol', 2000, 'fuel', id('Neha'), daysAgo: 1, at: ratlam);
+    await add('Chai and poha', 420, 'snacks', id('Priya'),
+        only: [id('Priya'), id('Rahul'), id('Aman'), id('Neha'), id('You')], daysAgo: 1, voice: true, at: dhaba);
+    await add('Petrol', 1500, 'fuel', id('Rahul'), voice: true, at: fort);
     await add('Toll plaza', 340, 'toll', id('Rahul'), voice: true);
-    await add('Dal baati churma', 1860, 'food', id('Aman'), voice: true);
-    await add('Hotel, 2 rooms', 6400, 'stay', id('Vikas'));
+    await add('Dal baati churma', 1860, 'food', id('Aman'), voice: true, at: thali);
+    await add('Hotel, 2 rooms', 6400, 'stay', id('Vikas'), at: hotel);
     await add('Keychains', 100, 'shopping', id('Rahul'), only: [id('Rahul'), id('Aman')]);
     return tripId;
   }

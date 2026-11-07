@@ -94,7 +94,7 @@ class _TripView extends StatelessWidget {
                   Row(children: [
                     _Tab(label: 'Expenses', active: true, onTap: () {}),
                     _Tab(label: 'Balances', onTap: () => context.push('/trip/${trip.id}/balances')),
-                    _Tab(label: 'Route', onTap: () => _soon(context)),
+                    _Tab(label: 'Route', onTap: () => context.push('/trip/${trip.id}/route')),
                     _Tab(label: 'Summary', onTap: () => context.push('/trip/${trip.id}/summary')),
                   ]),
                 ]),
@@ -116,9 +116,6 @@ class _TripView extends StatelessWidget {
       );
     });
   }
-
-  void _soon(BuildContext context) => ScaffoldMessenger.of(context)
-      .showSnackBar(const SnackBar(content: Text('Coming in the next build')));
 
   List<Widget> _expenseSlivers(BuildContext context, TripDetailState s) {
     final byDay = <DateTime, List<Expense>>{};
