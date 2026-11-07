@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/trip_cover.dart';
 import '../data/trip_repository.dart';
+import 'contact_picker.dart';
 
 /// New trip: cover, name, places, dates, budget and people, on one screen.
 class CreateTripPage extends StatefulWidget {
@@ -177,7 +178,18 @@ class _CreateTripPageState extends State<CreateTripPage> {
             ),
           ),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () async {
+              final names = await pickContacts(context, already: _people.map((p) => p.toLowerCase()).toSet());
+              if (names != null) setState(() => _people.addAll(names.where((n) => !_people.contains(n))));
+            },
+            icon: const Icon(Icons.contacts_outlined, size: 18),
+            label: const Text('Add from contacts'),
+          ),
+        ),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (var i = 0; i < _people.length; i++)
             InputChip(

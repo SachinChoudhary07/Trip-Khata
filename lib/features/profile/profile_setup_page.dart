@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/reminders.dart';
 import '../../core/theme/app_theme.dart';
 import '../trips/data/trip_repository.dart';
 
@@ -60,7 +61,10 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
       return;
     }
     setState(() => _saving = true);
-    await context.read<TripRepository>().saveProfile(name: name, upiId: upi.isEmpty ? null : upi, colorIndex: _color);
+    final repo = context.read<TripRepository>();
+    final first = await repo.getProfile() == null;
+    await repo.saveProfile(name: name, upiId: upi.isEmpty ? null : upi, colorIndex: _color);
+    if (first) await Reminders.setEnabled(true);
     if (!mounted) return;
     widget.editing ? context.pop() : context.go('/home');
   }

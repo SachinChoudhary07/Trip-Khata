@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/reminders.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/common.dart';
@@ -95,7 +96,12 @@ class SettingsPage extends StatelessWidget {
                 title: const Text('Daily reminder'),
                 subtitle: const Text('Nudge at 9 PM to add the day’s expenses'),
                 value: p?.reminders ?? true,
-                onChanged: p == null ? null : (v) => repo.updateSettings(reminders: v),
+                onChanged: p == null
+                    ? null
+                    : (v) async {
+                        await repo.updateSettings(reminders: v);
+                        await Reminders.setEnabled(v);
+                      },
               ),
             ]),
             const SectionLabel('Data', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),

@@ -214,6 +214,64 @@ class TripRepository {
     });
   }
 
+  /// Replaces an expense and its shares in one transaction.
+  Future<void> updateExpense({
+    required String id,
+    required String title,
+    required int amount,
+    required String category,
+    required String paidBy,
+    required List<NewShare> shares,
+    String splitMode = 'equally',
+  }) async {
+    assert(shares.fold<int>(0, (a, s) => a + s.share) == amount, 'shares must add up to amount');
+    await _db.transaction(() async {
+      final e = await (_db.select(_db.expenses)..where((x) => x.id.equals(id))).getSingle();
+      await (_db.update(_db.expenses)..where((x) => x.id.equals(id))).write(ExpensesCompanion(
+            title: Value(title),
+            amount: Value(amount),
+            category: Value(category),
+            paidBy: Value(paidBy),
+            splitMode: Value(splitMode),
+            updatedAt: Value(DateTime.now()),
+          ));
+      await (_db.delete(_db.expenseShares)..where((s) => s.expenseId.equals(id))).go();
+      for (final s in shares) {
+        await _db.into(_db.expenseShares).insert(ExpenseSharesCompanion.insert(
+              expenseId: id,
+              tripId: e.tripId,
+              memberId: s.memberId,
+              share: s.share,
+            ));
+      }
+    });
+  }
+
+  Future<Expense?> getExpense(String id) =>
+      (_db.select(_db.expenses)..where((e) => e.id.equals(id))).getSingleOrNull();
+
+  Future<List<ExpenseShare>> getShares(String expenseId) =>
+      (_db.select(_db.expenseShares)..where((s) => s.expenseId.equals(expenseId))).get();
+
+  Future<void> setBillPath(String expenseId, String? path) =>
+      (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
+          .write(ExpensesCompanion(billPath: Value(path)));
+
+  /// Adds people to an existing trip. Existing expenses are not changed.
+  Future<void> addMembers(String tripId, List<String> names) async {
+    final existing = await (_db.select(_db.members)..where((m) => m.tripId.equals(tripId))).get();
+    var i = existing.length;
+    for (final n in names.where((n) => n.trim().isNotEmpty)) {
+      if (existing.any((m) => m.name.toLowerCase() == n.trim().toLowerCase())) continue;
+      await _db.into(_db.members).insert(MembersCompanion.insert(
+            id: _uuid.v4(),
+            tripId: tripId,
+            name: n.trim(),
+            colorIndex: Value(i++ % 6),
+          ));
+    }
+  }
+
   Future<void> setMemberUpi(String memberId, String upiId) =>
       (_db.update(_db.members)..where((m) => m.id.equals(memberId)))
           .write(MembersCompanion(upiId: Value(upiId)));

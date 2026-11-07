@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/categories.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/trip_cover.dart';
 import '../trips/data/trip_repository.dart';
 import '../trips/presentation/home_page.dart' show dateRange;
 import '../trips/presentation/trip_detail_cubit.dart';
+import 'summary_pdf.dart';
 
 class SummaryPage extends StatelessWidget {
   const SummaryPage({super.key, required this.tripId});
@@ -71,6 +73,18 @@ class SummaryPage extends StatelessWidget {
             appBar: AppBar(
               leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
               title: const Text('Trip summary'),
+              actions: [
+                IconButton(
+                  tooltip: 'Export PDF',
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  onPressed: () async {
+                    final bytes = await buildSummaryPdf(s);
+                    final file = '${trip.name.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-')}-summary.pdf';
+                    await Printing.sharePdf(bytes: bytes, filename: file);
+                  },
+                ),
+                const SizedBox(width: 4),
+              ],
             ),
             bottomNavigationBar: SafeArea(
               child: Padding(

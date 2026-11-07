@@ -13,26 +13,45 @@ import '../domain/split_calculator.dart';
 import 'split_with_sheet.dart';
 
 class AddExpensePage extends StatelessWidget {
-  const AddExpensePage({super.key, required this.tripId});
+  const AddExpensePage({super.key, required this.tripId, this.expenseId});
   final String tripId;
+
+  /// When set, the page edits this expense instead of adding a new one.
+  final String? expenseId;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
         create: (c) => TripDetailCubit(c.read<TripRepository>(), tripId),
         child: BlocBuilder<TripDetailCubit, TripDetailState>(
           buildWhen: (a, b) => a.loading != b.loading || a.members != b.members,
-          builder: (context, s) => s.loading
-              ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-              : _AddExpenseForm(tripId: tripId, members: s.members, tripName: s.trip?.name ?? ''),
+          builder: (context, s) {
+            if (s.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            final existing = expenseId == null ? null : s.expenses.where((e) => e.id == expenseId).firstOrNull;
+            return _AddExpenseForm(
+              tripId: tripId,
+              members: s.members,
+              tripName: s.trip?.name ?? '',
+              existing: existing,
+              existingShares: existing == null ? const [] : (s.sharesByExpense[existing.id] ?? const []),
+            );
+          },
         ),
       );
 }
 
 class _AddExpenseForm extends StatefulWidget {
-  const _AddExpenseForm({required this.tripId, required this.members, required this.tripName});
+  const _AddExpenseForm({
+    required this.tripId,
+    required this.members,
+    required this.tripName,
+    this.existing,
+    this.existingShares = const [],
+  });
   final String tripId;
   final List<Member> members;
   final String tripName;
+  final Expense? existing;
+  final List<ExpenseShare> existingShares;
 
   @override
   State<_AddExpenseForm> createState() => _AddExpenseFormState();
@@ -43,8 +62,31 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
   final _title = TextEditingController();
   ExpenseCategory _category = ExpenseCategory.fuel;
   late String _payerId = (widget.members.where((m) => m.isMe).firstOrNull ?? widget.members.first).id;
-  late Set<String> _splitWith = widget.members.map((m) => m.id).toSet();
+  late SplitChoice _choice =
+      SplitChoice(mode: SplitMode.equally, selected: widget.members.map((m) => m.id).toSet());
   bool _saving = false;
+
+  bool get _editing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e != null) {
+      _amount = '${e.amount ~/ 100}';
+      _title.text = e.title;
+      _category = ExpenseCategory.fromName(e.category);
+      _payerId = e.paidBy;
+      final ids = widget.existingShares.map((s) => s.memberId).toSet();
+      _choice = e.splitMode == 'equally'
+          ? SplitChoice(mode: SplitMode.equally, selected: ids)
+          : SplitChoice(
+              mode: SplitMode.byAmount,
+              selected: ids,
+              amounts: {for (final s in widget.existingShares) s.memberId: s.share},
+            );
+    }
+  }
 
   int get _paise => rupeesTextToPaise(_amount);
 
@@ -94,29 +136,45 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
     final result = await showSplitWithSheet(
       context,
       members: widget.members,
-      selected: _splitWith,
+      current: _choice,
       amount: _paise,
       title: _title.text.trim().isEmpty ? _category.label : _title.text.trim(),
       payer: _member(_payerId),
       category: _category,
     );
-    if (result != null) setState(() => _splitWith = result);
+    if (result != null) setState(() => _choice = result);
   }
 
   Future<void> _save() async {
     if (_paise == 0) return _toast('Enter an amount');
-    if (_splitWith.isEmpty) return _toast('Pick at least one person to split with');
+    if (_choice.selected.isEmpty) return _toast('Pick at least one person to split with');
+    final shares = _choice.sharesFor(_paise, widget.members.map((m) => m.id).toList(), _payerId);
+    if (shares == null) return _toast('The split amounts don’t add up to ${formatPaise(_paise)}. Open “Split with” to fix.');
     setState(() => _saving = true);
-    final ordered = widget.members.map((m) => m.id).where(_splitWith.contains).toList();
-    final shares = SplitCalculator.equally(_paise, ordered, payerId: _payerId);
-    await context.read<TripRepository>().addExpense(
-          tripId: widget.tripId,
-          title: _title.text.trim().isEmpty ? _category.label : _title.text.trim(),
-          amount: _paise,
-          category: _category.name,
-          paidBy: _payerId,
-          shares: [for (final e in shares.entries) NewShare(e.key, e.value)],
-        );
+    final repo = context.read<TripRepository>();
+    final title = _title.text.trim().isEmpty ? _category.label : _title.text.trim();
+    final list = [for (final e in shares.entries) NewShare(e.key, e.value)];
+    if (_editing) {
+      await repo.updateExpense(
+        id: widget.existing!.id,
+        title: title,
+        amount: _paise,
+        category: _category.name,
+        paidBy: _payerId,
+        shares: list,
+        splitMode: _choice.modeName,
+      );
+    } else {
+      await repo.addExpense(
+        tripId: widget.tripId,
+        title: title,
+        amount: _paise,
+        category: _category.name,
+        paidBy: _payerId,
+        shares: list,
+        splitMode: _choice.modeName,
+      );
+    }
     if (mounted) context.pop();
   }
 
@@ -125,16 +183,21 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
   @override
   Widget build(BuildContext context) {
     final payer = _member(_payerId);
-    final n = _splitWith.length;
+    final n = _choice.selected.length;
     final all = n == widget.members.length;
     final each = n == 0 ? 0 : _paise ~/ n;
-    final picked = widget.members.where((m) => _splitWith.contains(m.id)).toList();
+    final picked = widget.members.where((m) => _choice.selected.contains(m.id)).toList();
+    final modeLabel = switch (_choice.mode) {
+      SplitMode.equally => all ? 'All ${widget.members.length}' : (n == 0 ? 'Nobody' : '$n people'),
+      SplitMode.byAmount => '$n · by amount',
+      SplitMode.byShares => '$n · by shares',
+    };
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Add expense'),
+          Text(_editing ? 'Edit expense' : 'Add expense'),
           Text(widget.tripName, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w400)),
         ]),
       ),
@@ -142,7 +205,11 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
         const SizedBox(height: 12),
         _AmountDisplay(text: _amount),
         Text(
-          _paise == 0 ? 'Enter an amount' : '${formatPaise(each)} each · $n ${n == 1 ? 'person' : 'people'}',
+          _paise == 0
+              ? 'Enter an amount'
+              : _choice.mode == SplitMode.equally
+                  ? '${formatPaise(each)} each · $n ${n == 1 ? 'person' : 'people'}'
+                  : 'Custom split · $n ${n == 1 ? 'person' : 'people'}',
           style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         Padding(
@@ -211,7 +278,7 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
               child: _PickerBox(
                 leading: AvatarStack(people: [for (final m in picked) (m.name, m.colorIndex)], size: 22, max: 3),
                 label: 'Split with',
-                value: all ? 'All ${widget.members.length}' : (n == 0 ? 'Nobody' : '$n people'),
+                value: modeLabel,
                 onTap: _pickSplit,
               ),
             ),
@@ -226,7 +293,7 @@ class _AddExpenseFormState extends State<_AddExpenseForm> {
             child: Column(children: [
               _Numpad(onKey: _key),
               const SizedBox(height: 10),
-              FilledButton(onPressed: _saving ? null : _save, child: const Text('Save expense')),
+              FilledButton(onPressed: _saving ? null : _save, child: Text(_editing ? 'Save changes' : 'Save expense')),
               const SizedBox(height: 12),
             ]),
           ),

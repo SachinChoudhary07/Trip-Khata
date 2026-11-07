@@ -10,6 +10,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/trip_cover.dart';
 import '../../../db/app_database.dart';
 import '../data/trip_repository.dart';
+import 'contact_picker.dart';
 import 'home_page.dart' show dateRange;
 import 'trip_detail_cubit.dart';
 
@@ -46,7 +47,7 @@ class _TripView extends StatelessWidget {
                   child: Row(children: [
                     _RoundButton(icon: Icons.arrow_back, onTap: () => context.pop()),
                     const Spacer(),
-                    _RoundButton(icon: Icons.ios_share, onTap: () {}),
+                    _RoundButton(icon: Icons.person_add_alt, onTap: () => _addPeople(context, s)),
                   ]),
                 ),
               ),
@@ -115,6 +116,60 @@ class _TripView extends StatelessWidget {
         ]),
       );
     });
+  }
+
+  Future<void> _addPeople(BuildContext context, TripDetailState s) async {
+    final repo = context.read<TripRepository>();
+    final tripId = s.trip!.id;
+    final already = s.members.map((m) => m.name.toLowerCase()).toSet();
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.contacts_outlined),
+            title: const Text('From contacts'),
+            onTap: () => Navigator.pop(c, 'contacts'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Type a name'),
+            onTap: () => Navigator.pop(c, 'name'),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Text('New people start at ₹0. Older expenses are not changed.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          ),
+        ]),
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    List<String>? names;
+    if (choice == 'contacts') {
+      names = await pickContacts(context, already: already);
+    } else {
+      final c = TextEditingController();
+      final n = await showDialog<String>(
+        context: context,
+        builder: (d) => AlertDialog(
+          title: const Text('Add a person'),
+          content: TextField(
+            controller: c,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(hintText: 'Name'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(d, c.text.trim()), child: const Text('Add')),
+          ],
+        ),
+      );
+      if (n != null && n.isNotEmpty) names = [n];
+    }
+    if (names != null && names.isNotEmpty) await repo.addMembers(tripId, names);
   }
 
   List<Widget> _expenseSlivers(BuildContext context, TripDetailState s) {

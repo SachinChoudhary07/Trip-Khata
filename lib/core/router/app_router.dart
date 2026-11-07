@@ -80,6 +80,15 @@ final appRouter = GoRouter(
             ExpenseDetailPage(tripId: s.pathParameters['id']!, expenseId: s.pathParameters['eid']!),
             s,
           ),
+          routes: [
+            GoRoute(
+              path: 'edit',
+              pageBuilder: (c, s) => _page(
+                AddExpensePage(tripId: s.pathParameters['id']!, expenseId: s.pathParameters['eid']!),
+                s,
+              ),
+            ),
+          ],
         ),
         GoRoute(
           path: 'paid',

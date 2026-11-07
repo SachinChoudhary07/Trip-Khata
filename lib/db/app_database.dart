@@ -44,6 +44,7 @@ class Expenses extends Table {
   BoolColumn get byVoice => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
   TextColumn get placeId => text().nullable()();
+  TextColumn get billPath => text().nullable()();
   DateTimeColumn get spentAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -108,7 +109,7 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +119,9 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(profiles);
             await m.createTable(places);
             await m.addColumn(expenses, expenses.placeId);
+          }
+          if (from < 3) {
+            await m.addColumn(expenses, expenses.billPath);
           }
         },
         beforeOpen: (details) async {
