@@ -34,80 +34,145 @@ class _TripView extends StatelessWidget {
       if (s.loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
       final trip = s.trip;
       if (trip == null) return const Scaffold(body: Center(child: Text('Trip not found')));
-      final owe = s.myBalance < 0;
+      final bal = s.myBalance;
+      final top = MediaQuery.of(context).padding.top;
+      final places = [trip.fromPlace, trip.toPlace].where((p) => p.isNotEmpty).join(' → ');
+
       return Scaffold(
+        backgroundColor: AppColors.background,
         floatingActionButton: _Fabs(tripId: trip.id),
         body: CustomScrollView(slivers: [
-          SliverToBoxAdapter(
-            child: Stack(children: [
-              TripCover(kind: trip.cover, height: 170),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(children: [
-                    _RoundButton(icon: Icons.arrow_back, onTap: () => context.pop()),
-                    const Spacer(),
-                    _RoundButton(icon: Icons.person_add_alt, onTap: () => _addPeople(context, s)),
-                  ]),
+          // Collapsing cover. The trip name appears in the bar once collapsed.
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 190,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            leadingWidth: 64,
+            leading: Center(child: _RoundButton(icon: Icons.arrow_back, onTap: () => context.pop())),
+            actions: [
+              _RoundButton(icon: Icons.person_add_alt, onTap: () => _addPeople(context, s)),
+              const SizedBox(width: 8),
+              _RoundButton(icon: Icons.pie_chart_outline, onTap: () => context.push('/trip/${trip.id}/summary')),
+              const SizedBox(width: 12),
+            ],
+            flexibleSpace: LayoutBuilder(builder: (context, box) {
+              final collapsed = box.maxHeight <= kToolbarHeight + top + 12;
+              return Stack(fit: StackFit.expand, children: [
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: collapsed ? 0 : 1,
+                  child: TripCover(kind: trip.cover, height: box.maxHeight),
                 ),
-              ),
-            ]),
-          ),
-          SliverToBoxAdapter(
-            child: Transform.translate(
-              offset: const Offset(0, -20),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(trip.name,
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-                        const SizedBox(height: 2),
-                        Text(dateRange(trip.startDate, trip.endDate),
-                            style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-                      ]),
+                Positioned(
+                  left: 72,
+                  right: 120,
+                  top: top,
+                  height: kToolbarHeight,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: collapsed ? 1 : 0,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(trip.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     ),
-                    AvatarStack(people: [for (final m in s.members) (m.name, m.colorIndex)], max: 5),
-                  ]),
-                  const SizedBox(height: 16),
-                  Row(children: [
+                  ),
+                ),
+              ]);
+            }),
+          ),
+          // Title, meta and people
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(trip.name,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.4, height: 1.2)),
+                const SizedBox(height: 8),
+                Wrap(spacing: 14, runSpacing: 6, children: [
+                  _Meta(icon: Icons.calendar_today_outlined, text: dateRange(trip.startDate, trip.endDate)),
+                  if (places.isNotEmpty && places != trip.name) _Meta(icon: Icons.route_outlined, text: places),
+                ]),
+                const SizedBox(height: 14),
+                Row(children: [
+                  AvatarStack(people: [for (final m in s.members) (m.name, m.colorIndex)], size: 32, max: 5),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('${s.members.length} people',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _addPeople(context, s),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add'),
+                  ),
+                ]),
+                const SizedBox(height: 14),
+                IntrinsicHeight(
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Expanded(child: _StatBox(label: 'Total', value: s.total)),
                     const SizedBox(width: 8),
                     Expanded(child: _StatBox(label: 'Per person', value: s.perPerson)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: _StatBox(
-                        label: owe ? 'You owe' : 'You get',
-                        value: s.myBalance.abs(),
-                        fg: owe ? AppColors.owe : AppColors.primary,
-                        bg: owe ? AppColors.oweSoft : AppColors.primaryTint,
+                        label: bal < 0 ? 'You owe' : (bal > 0 ? 'You get' : 'Balance'),
+                        value: bal.abs(),
+                        fg: bal < 0 ? AppColors.owe : (bal > 0 ? AppColors.primary : AppColors.text),
+                        bg: bal < 0 ? AppColors.oweSoft : (bal > 0 ? AppColors.primaryTint : AppColors.background),
+                        trailing: true,
                         onTap: () => context.push('/trip/${trip.id}/balances'),
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _Tab(label: 'Expenses', active: true, onTap: () {}),
-                    _Tab(label: 'Balances', onTap: () => context.push('/trip/${trip.id}/balances')),
-                    _Tab(label: 'Route', onTap: () => context.push('/trip/${trip.id}/route')),
-                    _Tab(label: 'Summary', onTap: () => context.push('/trip/${trip.id}/summary')),
-                  ]),
+                ),
+              ]),
+            ),
+          ),
+          // Tabs stay pinned under the bar
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabsHeader(
+              child: Container(
+                color: Colors.white,
+                child: Column(children: [
+                  Expanded(
+                    child: Row(children: [
+                      _Tab(label: 'Expenses', active: true, onTap: () {}),
+                      _Tab(label: 'Balances', onTap: () => context.push('/trip/${trip.id}/balances')),
+                      _Tab(label: 'Route', onTap: () => context.push('/trip/${trip.id}/route')),
+                      _Tab(label: 'Summary', onTap: () => context.push('/trip/${trip.id}/summary')),
+                    ]),
+                  ),
+                  const Divider(height: 1),
                 ]),
               ),
             ),
           ),
           if (s.expenses.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text('No expenses yet. Tap “Add expense” to log the first one.',
-                    textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted)),
+                padding: const EdgeInsets.fromLTRB(32, 48, 32, 0),
+                child: Column(children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(20)),
+                    child: const Icon(Icons.receipt_long_outlined, color: AppColors.primary, size: 30),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('No expenses yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  const Text('Tap “Speak to add” and say something like “Rahul ne 1500 ka petrol bharwaya”.',
+                      textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, height: 1.45)),
+                ]),
               ),
             )
           else
@@ -191,40 +256,69 @@ class _TripView extends StatelessWidget {
     return [
       for (final entry in byDay.entries) ...[
         SliverToBoxAdapter(
-          child: Transform.translate(
-            offset: const Offset(0, -20),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
-              child: Row(children: [
-                Text(label(entry.key),
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-                const Spacer(),
-                Text(formatPaise(entry.value.fold(0, (a, e) => a + e.amount)),
-                    style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
-              ]),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+            child: Row(children: [
+              Text(label(entry.key),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+              const Spacer(),
+              Text(formatPaise(entry.value.fold(0, (a, e) => a + e.amount)),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+            ]),
           ),
         ),
         SliverToBoxAdapter(
-          child: Transform.translate(
-            offset: const Offset(0, -20),
-            child: Container(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
               color: Colors.white,
-              child: Column(children: [
-                for (var i = 0; i < entry.value.length; i++) ...[
-                  if (i > 0) const Divider(indent: 74),
-                  FadeSlideIn(
-                    delay: Duration(milliseconds: 60 * (index < 10 ? index++ : 10)),
-                    child: _ExpenseRow(expense: entry.value[i], state: s),
-                  ),
-                ],
-              ]),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.line),
             ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: [
+              for (var i = 0; i < entry.value.length; i++) ...[
+                if (i > 0) const Divider(indent: 70, height: 1),
+                FadeSlideIn(
+                  delay: Duration(milliseconds: 60 * (index < 10 ? index++ : 10)),
+                  child: _ExpenseRow(expense: entry.value[i], state: s),
+                ),
+              ],
+            ]),
           ),
         ),
       ],
     ];
   }
+}
+
+class _TabsHeader extends SliverPersistentHeaderDelegate {
+  _TabsHeader({required this.child});
+  final Widget child;
+
+  @override
+  double get minExtent => 48;
+  @override
+  double get maxExtent => 48;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  bool shouldRebuild(_TabsHeader oldDelegate) => true;
+}
+
+class _Meta extends StatelessWidget {
+  const _Meta({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 15, color: AppColors.textMuted),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+      ]);
 }
 
 class _ExpenseRow extends StatelessWidget {
@@ -246,7 +340,7 @@ class _ExpenseRow extends StatelessWidget {
     return InkWell(
       onTap: () => context.push('/trip/${expense.tripId}/expense/${expense.id}'),
       child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(children: [
         CategoryTile(category: cat),
         const SizedBox(width: 14),
@@ -294,28 +388,49 @@ class _ExpenseRow extends StatelessWidget {
 }
 
 class _StatBox extends StatelessWidget {
-  const _StatBox({required this.label, required this.value, this.fg = AppColors.text, this.bg = AppColors.background, this.onTap});
+  const _StatBox({
+    required this.label,
+    required this.value,
+    this.fg = AppColors.text,
+    this.bg = AppColors.background,
+    this.onTap,
+    this.trailing = false,
+  });
   final String label;
   final int value;
   final Color fg;
   final Color bg;
   final VoidCallback? onTap;
+  final bool trailing;
 
   @override
   Widget build(BuildContext context) => Material(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: TextStyle(fontSize: 12, color: fg == AppColors.text ? AppColors.textMuted : fg)),
-              CountUpText(
-                value: value,
-                format: formatPaise,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fg),
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [
+                Expanded(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: fg == AppColors.text ? AppColors.textMuted : fg)),
+                ),
+                if (trailing) Icon(Icons.chevron_right, size: 16, color: fg == AppColors.text ? AppColors.textMuted : fg),
+              ]),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: CountUpText(
+                  value: value,
+                  format: formatPaise,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: fg),
+                ),
               ),
             ]),
           ),

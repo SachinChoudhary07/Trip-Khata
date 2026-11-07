@@ -14,21 +14,26 @@ import '../../db/app_database.dart';
 import '../trips/data/trip_repository.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.embedded = false});
+
+  /// True when shown as the Profile tab of the bottom bar.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final repo = context.read<TripRepository>();
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
-        title: const Text('Profile'),
+        automaticallyImplyLeading: false,
+        leading: embedded ? null : IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        titleSpacing: embedded ? 20 : null,
+        title: Text('Profile', style: embedded ? const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5) : null),
       ),
       body: StreamBuilder<Profile?>(
         stream: repo.watchProfile(),
         builder: (context, snap) {
           final p = snap.data;
-          return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
+          return ListView(padding: EdgeInsets.fromLTRB(16, 12, 16, embedded ? 120 : 32), children: [
             FadeSlideIn(
               child: Container(
                 padding: const EdgeInsets.all(16),

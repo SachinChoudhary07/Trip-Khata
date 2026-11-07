@@ -14,7 +14,7 @@ import '../../features/settle/presentation/balances_page.dart';
 import '../../features/settle/presentation/payment_success_page.dart';
 import '../../features/splash/splash_page.dart';
 import '../../features/trips/presentation/create_trip_page.dart';
-import '../../features/trips/presentation/home_page.dart';
+import '../../features/shell/main_shell.dart';
 import '../../features/trips/presentation/trip_page.dart';
 import '../../features/voice/presentation/voice_page.dart';
 
@@ -39,7 +39,7 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', pageBuilder: (c, s) => _page(const SplashPage(), s)),
-    GoRoute(path: '/home', pageBuilder: (c, s) => _page(const HomePage(), s)),
+    GoRoute(path: '/home', pageBuilder: (c, s) => _page(const MainShell(), s)),
     GoRoute(path: '/onboarding', pageBuilder: (c, s) => _page(const OnboardingPage(), s)),
     GoRoute(path: '/login', pageBuilder: (c, s) => _page(const LoginPage(), s)),
     GoRoute(path: '/profile/setup', pageBuilder: (c, s) => _page(const ProfileSetupPage(), s)),
