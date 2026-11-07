@@ -1,6 +1,6 @@
 # TripKhata
 
-Group trip expense splitter. Offline-first, Hinglish voice entry (next build), split with selected people, settle up over UPI.
+Group trip expense splitter. Offline-first, Hinglish voice entry, split with selected people, settle up over UPI, route log.
 
 ## First run (once)
 
@@ -24,16 +24,17 @@ On first launch, tap **Try a sample trip** to see the Indore → Udaipur demo da
 
 | Area | Status |
 | --- | --- |
-| Splash (animated road, car, chips) | Done |
-| Home: ongoing trip card, past trips, empty state, sample trip | Done |
-| New trip: cover, places, dates, budget, people | Done |
+| Splash, onboarding, login (offline), profile setup | Done |
+| Home, new trip (with contacts), add people to a trip | Done |
 | Trip: totals, expenses by day, "Not in your share" tag | Done |
-| Add expense: numpad, category, paid by, Split with sheet | Done (equal split) |
-| Balances: your payments, UPI deep link, mark as paid, everyone's bars | Done |
-| Split logic, settle-up, Hinglish parser | Done, unit tested |
-| Voice screen (speech_to_text + parser) | Next |
-| Split by amount / by shares in the UI | Next |
-| Route, check-in, summary, settings, login | Later phases |
+| Add / edit expense: numpad, category, payer, split equally / by amount / by shares | Done |
+| Speak to add: on-device speech + Hinglish parser | Done |
+| Expense detail with bill photo, delete | Done |
+| Balances, UPI deep link, mark as paid, payment sent | Done |
+| Route map (OpenStreetMap), GPS check-in linked to expenses | Done |
+| Trip summary: donut, highlights, share text, PDF | Done |
+| Settings: voice language, daily 9 PM reminder, CSV export | Done |
+| Google sign-in, cloud backup and sync | v2 |
 
 ## Structure
 
