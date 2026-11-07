@@ -181,7 +181,20 @@ class _MyTransferRow extends StatelessWidget {
         ],
       ),
     );
-    if (paid == true && context.mounted) await context.read<TripDetailCubit>().markPaid(transfer);
+    if (paid == true && context.mounted) {
+      final next = state.transfers
+          .where((t) => t != transfer && t.fromId == state.me?.id)
+          .firstOrNull;
+      final nextTo = next == null ? null : state.member(next.toId);
+      await context.read<TripDetailCubit>().markPaid(transfer);
+      if (!context.mounted) return;
+      context.push('/trip/${state.trip!.id}/paid', extra: <String, Object?>{
+        'to': to.name,
+        'amount': transfer.amount,
+        'nextName': nextTo?.name,
+        'nextAmount': next?.amount,
+      });
+    }
   }
 
   Future<String?> _askUpi(BuildContext context, Member to) {

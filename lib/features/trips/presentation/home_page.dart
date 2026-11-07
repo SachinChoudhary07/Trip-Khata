@@ -193,7 +193,7 @@ class _OngoingCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 child: IconButton.filledTonal(
-                  onPressed: () => context.push('/trip/${t.id}/add?voice=1'),
+                  onPressed: () => context.push('/trip/${t.id}/voice'),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.primarySoft,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

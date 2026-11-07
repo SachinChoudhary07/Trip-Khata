@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/expenses/presentation/add_expense_page.dart';
+import '../../features/expenses/presentation/expense_detail_page.dart';
 import '../../features/settle/presentation/balances_page.dart';
+import '../../features/settle/presentation/payment_success_page.dart';
 import '../../features/splash/splash_page.dart';
 import '../../features/trips/presentation/create_trip_page.dart';
 import '../../features/trips/presentation/home_page.dart';
 import '../../features/trips/presentation/trip_page.dart';
+import '../../features/voice/presentation/voice_page.dart';
 
 /// Slide-up + fade transition used for every screen.
 CustomTransitionPage<void> _page(Widget child, GoRouterState state) => CustomTransitionPage(
@@ -42,6 +45,34 @@ final appRouter = GoRouter(
         GoRoute(
           path: 'balances',
           pageBuilder: (c, s) => _page(BalancesPage(tripId: s.pathParameters['id']!), s),
+        ),
+        GoRoute(
+          path: 'voice',
+          pageBuilder: (c, s) => _page(VoicePage(tripId: s.pathParameters['id']!), s),
+        ),
+        GoRoute(
+          path: 'expense/:eid',
+          pageBuilder: (c, s) => _page(
+            ExpenseDetailPage(tripId: s.pathParameters['id']!, expenseId: s.pathParameters['eid']!),
+            s,
+          ),
+        ),
+        GoRoute(
+          path: 'paid',
+          pageBuilder: (c, s) {
+            final x = (s.extra as Map<String, Object?>?) ?? const {};
+            return _page(
+              PaymentSuccessPage(
+                tripId: s.pathParameters['id']!,
+                toName: x['to'] as String? ?? '',
+                amount: x['amount'] as int? ?? 0,
+                app: x['app'] as String?,
+                nextName: x['nextName'] as String?,
+                nextAmount: x['nextAmount'] as int?,
+              ),
+              s,
+            );
+          },
         ),
       ],
     ),

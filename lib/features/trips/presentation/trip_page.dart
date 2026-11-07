@@ -191,7 +191,9 @@ class _ExpenseRow extends StatelessWidget {
         ? '${shares.length} people'
         : 'only ${shares.map((sh) => state.member(sh.memberId)).whereType<Member>().map((m) => m.isMe ? 'you' : m.name).join(', ')}';
     final mine = state.isMine(expense);
-    return Padding(
+    return InkWell(
+      onTap: () => context.push('/trip/${expense.tripId}/expense/${expense.id}'),
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(children: [
         CategoryTile(category: cat),
@@ -234,6 +236,7 @@ class _ExpenseRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
         ]),
       ]),
+      ),
     );
   }
 }
@@ -331,12 +334,12 @@ class _Fabs extends StatelessWidget {
         const SizedBox(height: 12),
         FloatingActionButton.extended(
           heroTag: 'add',
-          onPressed: () => context.push('/trip/$tripId/add'),
+          onPressed: () => context.push('/trip/$tripId/voice'),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           icon: const _PulsingMic(),
-          label: const Text('Add expense', style: TextStyle(fontWeight: FontWeight.w600)),
+          label: const Text('Speak to add', style: TextStyle(fontWeight: FontWeight.w600)),
         ),
       ]);
 }
@@ -379,7 +382,7 @@ class _PulsingMicState extends State<_PulsingMic> with SingleTickerProviderState
               width: 30,
               height: 30,
               decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: const Icon(Icons.add, size: 18, color: AppColors.primary),
+              child: const Icon(Icons.mic, size: 18, color: AppColors.primary),
             ),
           ]),
         ),

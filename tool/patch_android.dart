@@ -9,14 +9,17 @@ void main() {
     exit(1);
   }
   var xml = f.readAsStringSync();
-  if (xml.contains('android:scheme="upi"')) {
-    stdout.writeln('UPI query already present.');
+  if (xml.contains('android.speech.RecognitionService')) {
+    stdout.writeln('Manifest already patched.');
     return;
   }
   const upi = '''
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="upi" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>''';
   if (xml.contains('<queries>')) {
     xml = xml.replaceFirst('<queries>', '<queries>\n$upi');
@@ -28,5 +31,5 @@ void main() {
         '<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application');
   }
   f.writeAsStringSync(xml);
-  stdout.writeln('AndroidManifest.xml patched for UPI.');
+  stdout.writeln('AndroidManifest.xml patched for UPI and speech.');
 }
