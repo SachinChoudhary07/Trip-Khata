@@ -1,0 +1,31 @@
+name: tripkhata
+description: Group trip expense splitter. Offline-first, voice entry, route log.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.5
+  go_router: ^14.6.0
+  drift: ^2.22.0
+  drift_flutter: ^0.2.4
+  path_provider: ^2.1.4
+  google_fonts: ^6.2.1
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  drift_dev: ^2.22.0
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
