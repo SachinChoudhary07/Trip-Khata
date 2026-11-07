@@ -49,7 +49,88 @@ class TripRepository {
 
   Stream<List<Settlement>> watchAllSettlements() => _db.select(_db.settlements).watch();
 
+  Stream<Profile?> watchProfile() =>
+      (_db.select(_db.profiles)..where((p) => p.id.equals(1))).watchSingleOrNull();
+
+  Future<Profile?> getProfile() =>
+      (_db.select(_db.profiles)..where((p) => p.id.equals(1))).getSingleOrNull();
+
+  Stream<List<Place>> watchPlaces(String tripId) => (_db.select(_db.places)
+        ..where((p) => p.tripId.equals(tripId))
+        ..orderBy([(p) => OrderingTerm.asc(p.visitedAt)]))
+      .watch();
+
   // ---------- writes ----------
+
+  Future<void> saveProfile({
+    required String name,
+    String? upiId,
+    int colorIndex = 0,
+    String? voiceLang,
+    bool? reminders,
+  }) =>
+      _db.into(_db.profiles).insertOnConflictUpdate(ProfilesCompanion(
+            id: const Value(1),
+            name: Value(name),
+            upiId: Value(upiId),
+            colorIndex: Value(colorIndex),
+            voiceLang: voiceLang == null ? const Value.absent() : Value(voiceLang),
+            reminders: reminders == null ? const Value.absent() : Value(reminders),
+          ));
+
+  Future<void> updateSettings({String? voiceLang, bool? reminders}) =>
+      (_db.update(_db.profiles)..where((p) => p.id.equals(1))).write(ProfilesCompanion(
+        voiceLang: voiceLang == null ? const Value.absent() : Value(voiceLang),
+        reminders: reminders == null ? const Value.absent() : Value(reminders),
+      ));
+
+  Future<String> addPlace({
+    required String tripId,
+    required String name,
+    required String type,
+    double? lat,
+    double? lng,
+    String? note,
+  }) async {
+    final id = _uuid.v4();
+    await _db.into(_db.places).insert(PlacesCompanion.insert(
+          id: id,
+          tripId: tripId,
+          name: name,
+          type: type,
+          lat: Value(lat),
+          lng: Value(lng),
+          note: Value(note),
+        ));
+    return id;
+  }
+
+  /// All trips as CSV: one row per expense, with each person's share.
+  Future<String> exportCsv() async {
+    final trips = await _db.select(_db.trips).get();
+    final members = {for (final m in await _db.select(_db.members).get()) m.id: m};
+    final expenses = await (_db.select(_db.expenses)..orderBy([(e) => OrderingTerm.asc(e.spentAt)])).get();
+    final shares = await _db.select(_db.expenseShares).get();
+    String q(String v) => '"${v.replaceAll('"', '""')}"';
+    final tripName = {for (final t in trips) t.id: t.name};
+    final b = StringBuffer('trip,date,title,category,amount_inr,paid_by,split_between\n');
+    for (final e in expenses) {
+      final who = shares
+          .where((s) => s.expenseId == e.id)
+          .map((s) => '${members[s.memberId]?.name ?? '?'} ${(s.share / 100).toStringAsFixed(2)}')
+          .join('; ');
+      b.writeln([
+        q(tripName[e.tripId] ?? ''),
+        e.spentAt.toIso8601String().substring(0, 16).replaceFirst('T', ' '),
+        q(e.title),
+        e.category,
+        (e.amount / 100).toStringAsFixed(2),
+        q(members[e.paidBy]?.name ?? ''),
+        q(who),
+      ].join(','));
+    }
+    return b.toString();
+  }
 
   Future<String> createTrip({
     required String name,
@@ -105,6 +186,7 @@ class TripRepository {
     String splitMode = 'equally',
     bool byVoice = false,
     DateTime? spentAt,
+    String? placeId,
   }) async {
     assert(shares.fold<int>(0, (a, s) => a + s.share) == amount, 'shares must add up to amount');
     final id = _uuid.v4();
@@ -118,6 +200,7 @@ class TripRepository {
             paidBy: paidBy,
             splitMode: Value(splitMode),
             byVoice: Value(byVoice),
+            placeId: Value(placeId),
             spentAt: spentAt == null ? const Value.absent() : Value(spentAt),
           ));
       for (final s in shares) {

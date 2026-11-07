@@ -95,7 +95,7 @@ class _TripView extends StatelessWidget {
                     _Tab(label: 'Expenses', active: true, onTap: () {}),
                     _Tab(label: 'Balances', onTap: () => context.push('/trip/${trip.id}/balances')),
                     _Tab(label: 'Route', onTap: () => _soon(context)),
-                    _Tab(label: 'Summary', onTap: () => _soon(context)),
+                    _Tab(label: 'Summary', onTap: () => context.push('/trip/${trip.id}/summary')),
                   ]),
                 ]),
               ),

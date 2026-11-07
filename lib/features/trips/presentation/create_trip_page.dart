@@ -28,6 +28,19 @@ class _CreateTripPageState extends State<CreateTripPage> {
   final List<String> _people = [];
   DateTimeRange? _dates;
   bool _saving = false;
+  String? _myUpi;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<TripRepository>().getProfile().then((p) {
+      if (p == null || !mounted) return;
+      setState(() {
+        _myName.text = p.name;
+        _myUpi = p.upiId;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -76,6 +89,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
               ? null
               : int.parse(_budget.text.replaceAll(',', '')) * 100,
           cover: _cover,
+          myUpiId: _myUpi,
         );
     if (mounted) context.pushReplacement('/trip/$id');
   }

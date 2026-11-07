@@ -2,11 +2,13 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/categories.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../trips/data/trip_repository.dart';
 
 /// Splash from the design: logo pops, wordmark rises, floating expense chips,
 /// hills with a car driving along the road.
@@ -29,8 +31,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     Future.delayed(const Duration(milliseconds: 2600), _go);
   }
 
-  void _go() {
-    if (mounted) context.go('/home');
+  bool _left = false;
+
+  Future<void> _go() async {
+    if (!mounted || _left) return;
+    _left = true;
+    final profile = await context.read<TripRepository>().getProfile();
+    if (mounted) context.go(profile == null ? '/onboarding' : '/home');
   }
 
   @override

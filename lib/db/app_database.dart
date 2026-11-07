@@ -43,6 +43,7 @@ class Expenses extends Table {
   TextColumn get splitMode => text().withDefault(const Constant('equally'))();
   BoolColumn get byVoice => boolean().withDefault(const Constant(false))();
   TextColumn get note => text().nullable()();
+  TextColumn get placeId => text().nullable()();
   DateTimeColumn get spentAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -72,17 +73,53 @@ class Settlements extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements])
+/// Single-row table (id = 1) with the phone owner's profile and settings.
+class Profiles extends Table {
+  IntColumn get id => integer().withDefault(const Constant(1))();
+  TextColumn get name => text()();
+  TextColumn get upiId => text().nullable()();
+  IntColumn get colorIndex => integer().withDefault(const Constant(0))();
+  TextColumn get voiceLang => text().withDefault(const Constant('hi'))();
+  BoolColumn get reminders => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Check-ins: hotels, dhabas, petrol pumps, sights along the route.
+class Places extends Table {
+  TextColumn get id => text()();
+  TextColumn get tripId => text().references(Trips, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  TextColumn get type => text()();
+  RealColumn get lat => real().nullable()();
+  RealColumn get lng => real().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get visitedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements, Profiles, Places])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(profiles);
+            await m.createTable(places);
+            await m.addColumn(expenses, expenses.placeId);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },

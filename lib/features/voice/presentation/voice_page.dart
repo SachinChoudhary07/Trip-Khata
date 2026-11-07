@@ -89,10 +89,11 @@ class _VoiceViewState extends State<_VoiceView> with TickerProviderStateMixin {
       setState(() => _phase = _Phase.unavailable);
       return;
     }
+    final profile = await context.read<TripRepository>().getProfile();
     final locales = await _speech.locales();
     final hindi = locales.where((l) => l.localeId.toLowerCase().startsWith('hi')).firstOrNull;
     final enIn = locales.where((l) => l.localeId.toLowerCase().replaceAll('-', '_') == 'en_in').firstOrNull;
-    _localeId = (hindi ?? enIn)?.localeId;
+    _localeId = (profile?.voiceLang == 'en' ? (enIn ?? hindi) : (hindi ?? enIn))?.localeId;
     _start();
   }
 

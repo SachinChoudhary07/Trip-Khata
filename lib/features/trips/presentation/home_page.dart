@@ -42,7 +42,7 @@ class _HomeView extends StatelessWidget {
           Text('Your trips', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
         ]),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search), tooltip: 'Search'),
+          IconButton(onPressed: () => context.push('/settings'), icon: const Icon(Icons.person_outline), tooltip: 'Profile'),
           const SizedBox(width: 8),
         ],
       ),
