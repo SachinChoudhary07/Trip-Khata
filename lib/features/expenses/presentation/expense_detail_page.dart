@@ -7,6 +7,7 @@ import '../../../core/categories.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/common.dart';
+import '../../../db/app_database.dart';
 import '../../trips/data/trip_repository.dart';
 import '../../trips/presentation/trip_detail_cubit.dart';
 
@@ -26,7 +27,7 @@ class ExpenseDetailPage extends StatelessWidget {
           }
           final cat = ExpenseCategory.fromName(e.category);
           final payer = s.member(e.paidBy);
-          final shares = [...(s.sharesByExpense[e.id] ?? const [])]
+          final shares = <ExpenseShare>[...(s.sharesByExpense[e.id] ?? const <ExpenseShare>[])]
             ..sort((a, b) => (s.member(a.memberId)?.name ?? '').compareTo(s.member(b.memberId)?.name ?? ''));
           final everyone = shares.length == s.members.length;
           final notIn = s.members.where((m) => !shares.any((sh) => sh.memberId == m.id)).toList();
