@@ -471,6 +471,11 @@ class _EmptyHome extends StatelessWidget {
           },
           child: const Text('or try a sample trip'),
         ),
+        TextButton.icon(
+          onPressed: () => context.push('/join'),
+          icon: const Icon(Icons.group_add_outlined, size: 18),
+          label: const Text('Join a friend’s trip'),
+        ),
       ]),
     );
   }

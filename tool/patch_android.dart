@@ -65,8 +65,36 @@ void _patchGradle() {
   final f = kts.existsSync() ? kts : groovy;
   if (!f.existsSync()) return;
   var g = f.readAsStringSync();
-  if (g.contains('desugar_jdk_libs')) return;
   final isKts = f.path.endsWith('.kts');
+  // Firebase Auth / Firestore need Android 6.0+.
+  g = g.replaceFirst(RegExp(r'minSdk\s*=\s*flutter\.minSdkVersion'), 'minSdk = 23');
+  g = g.replaceFirst(RegExp(r'minSdkVersion\s+flutter\.minSdkVersion'), 'minSdkVersion 23');
+  if (isKts && !g.contains('key.properties')) {
+    // Stable release signing from android/key.properties (written by CI from
+    // secrets). Without it the build falls back to the debug key.
+    g = 'import java.io.FileInputStream\nimport java.util.Properties\n\n$g';
+    g = g.replaceFirst('android {', '''val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+
+android {
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }''');
+    g = g.replaceFirst('signingConfig = signingConfigs.getByName("debug")',
+        'signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")');
+  }
+  if (g.contains('desugar_jdk_libs')) {
+    f.writeAsStringSync(g);
+    return;
+  }
   g = g.replaceFirst(
     'compileOptions {',
     isKts ? 'compileOptions {\n        isCoreLibraryDesugaringEnabled = true' : 'compileOptions {\n        coreLibraryDesugaringEnabled true',

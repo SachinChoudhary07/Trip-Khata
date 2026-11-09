@@ -93,6 +93,12 @@ class _ShellState extends State<_Shell> {
                 ),
               ),
             ]),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: () => Navigator.pop(c, 'join'),
+              icon: const Icon(Icons.group_add_outlined, size: 18),
+              label: const Text('Join a friend’s trip with a code'),
+            ),
           ]),
         ),
       ),
@@ -107,6 +113,8 @@ class _ShellState extends State<_Shell> {
         context.push('/trip/${trip.id}/checkin');
       case 'trip':
         context.push('/trip/new');
+      case 'join':
+        context.push('/join');
     }
   }
 

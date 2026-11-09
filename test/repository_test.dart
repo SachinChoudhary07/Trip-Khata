@@ -160,4 +160,45 @@ void main() {
     expect(lines[1], contains('"Goa ""2026"""'));
     expect(lines[1], contains('1500.00'));
   });
+
+  test('shared trip: edits are queued, remote rows round-trip, remote delete wins', () async {
+    final id = await repo.createTrip(name: 'T', myName: 'A', otherNames: ['B']);
+    final m = await ids(id);
+    // Not shared yet: nothing queued.
+    await repo.addSettlement(tripId: id, fromMember: m['B']!, toMember: m['A']!, amount: 100);
+    expect(await db.select(db.outbox).get(), isEmpty);
+
+    await repo.markShared(id, 'ABC234', 'uid-a');
+    await repo.addExpense(
+      tripId: id,
+      title: 'Petrol',
+      amount: 2000,
+      category: 'fuel',
+      paidBy: m['A']!,
+      shares: [NewShare(m['A']!, 1000), NewShare(m['B']!, 1000)],
+    );
+    final queued = await db.select(db.outbox).get();
+    expect(queued.map((o) => o.entity), ['expense']);
+
+    // Export -> apply into a second phone's database gives the same expense.
+    final exported = await repo.exportEntity('expense', queued.single.entityId);
+    final db2 = AppDatabase(DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true));
+    addTearDown(db2.close);
+    final repo2 = TripRepository(db2);
+    await repo2.applyRemoteTrip(id, (await repo.exportTripDoc(id))!);
+    for (final mem in (await repo.exportTrip(id))['member']!) {
+      await repo2.applyRemote(id, 'member', mem['id'] as String, mem, myUid: 'uid-a');
+    }
+    await repo2.applyRemote(id, 'expense', exported!['id'] as String, exported);
+    final e2 = await db2.select(db2.expenses).getSingle();
+    expect(e2.amount, 2000);
+    expect((await db2.select(db2.expenseShares).get()).length, 2);
+    expect(await db2.select(db2.outbox).get(), isEmpty, reason: 'remote writes are never re-queued');
+    final me2 = await (db2.select(db2.members)..where((x) => x.isMe.equals(true))).getSingle();
+    expect(me2.name, 'A', reason: 'uid match marks "me" on the other phone');
+
+    await repo2.applyRemote(id, 'expense', e2.id, {'deleted': true, 'updatedAt': DateTime.now().millisecondsSinceEpoch});
+    expect(await db2.select(db2.expenses).get(), isEmpty);
+    expect(await db2.select(db2.expenseShares).get(), isEmpty);
+  });
 }

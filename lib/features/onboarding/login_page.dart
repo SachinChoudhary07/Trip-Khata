@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/trip_cover.dart';
+import '../cloud/cloud_sync.dart';
+import '../trips/data/trip_repository.dart';
 
 /// v1 is fully offline, so both buttons lead to profile setup on this phone.
 /// Google sign-in (free on Firebase Spark) is wired in with cloud backup in v2.
@@ -40,11 +43,26 @@ class LoginPage extends StatelessWidget {
                         style: TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.5)),
                     const SizedBox(height: 28),
                     FilledButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Google sign-in comes with cloud backup. Setting you up offline for now.'),
-                        ));
-                        context.go('/profile/setup');
+                      onPressed: () async {
+                        final cloud = context.read<CloudSync>();
+                        final repo = context.read<TripRepository>();
+                        final messenger = ScaffoldMessenger.of(context);
+                        if (!cloud.available) {
+                          messenger.showSnackBar(const SnackBar(
+                            content: Text('Cloud sign-in isn’t set up in this build. Setting you up offline.'),
+                          ));
+                          context.go('/profile/setup');
+                          return;
+                        }
+                        try {
+                          final u = await cloud.signInWithGoogle();
+                          if (await repo.getProfile() == null && (u.displayName ?? '').isNotEmpty) {
+                            await repo.saveProfile(name: u.displayName!);
+                          }
+                          if (context.mounted) context.go('/profile/setup');
+                        } catch (e) {
+                          messenger.showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
+                        }
                       },
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
                       icon: Container(

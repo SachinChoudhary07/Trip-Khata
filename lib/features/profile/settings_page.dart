@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/common.dart';
 import '../../db/app_database.dart';
+import '../cloud/share_join.dart';
 import '../trips/data/trip_repository.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -64,6 +65,8 @@ class SettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const FadeSlideIn(delay: Duration(milliseconds: 60), child: _Stats()),
+            const SectionLabel('Account', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
+            const FadeSlideIn(delay: Duration(milliseconds: 90), child: AccountCard()),
             const SectionLabel('Preferences', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
             _Group(delay: 120, children: [
               ListTile(

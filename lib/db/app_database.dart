@@ -14,6 +14,9 @@ class Trips extends Table {
   DateTimeColumn get endDate => dateTime().nullable()();
   IntColumn get budget => integer().nullable()();
   TextColumn get cover => text().withDefault(const Constant('desert'))();
+
+  /// Set when the trip is shared to the cloud; friends join with this code.
+  TextColumn get joinCode => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -29,8 +32,20 @@ class Members extends Table {
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
   BoolColumn get isMe => boolean().withDefault(const Constant(false))();
 
+  /// Firebase uid of the person who claimed this member (shared trips only).
+  TextColumn get uid => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Local changes waiting to be pushed to the cloud (shared trips only).
+class Outbox extends Table {
+  IntColumn get seq => integer().autoIncrement()();
+  TextColumn get tripId => text()();
+  TextColumn get entity => text()();
+  TextColumn get entityId => text()();
+  TextColumn get op => text()();
 }
 
 class Expenses extends Table {
@@ -102,14 +117,14 @@ class Places extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements, Profiles, Places])
+@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements, Profiles, Places, Outbox])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -122,6 +137,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.addColumn(expenses, expenses.billPath);
+          }
+          if (from < 4) {
+            await m.addColumn(trips, trips.joinCode);
+            await m.addColumn(members, members.uid);
+            await m.createTable(outbox);
           }
         },
         beforeOpen: (details) async {

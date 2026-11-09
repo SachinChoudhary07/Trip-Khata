@@ -10,6 +10,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/trip_cover.dart';
 import '../../../db/app_database.dart';
 import '../data/trip_repository.dart';
+import '../../cloud/share_join.dart';
 import 'contact_picker.dart';
 import 'home_page.dart' show dateRange;
 import 'trip_detail_cubit.dart';
@@ -53,6 +54,11 @@ class _TripView extends StatelessWidget {
             leadingWidth: 64,
             leading: Center(child: _RoundButton(icon: Icons.arrow_back, onTap: () => context.pop())),
             actions: [
+              _RoundButton(
+                icon: trip.joinCode == null ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined,
+                onTap: () => showShareTripSheet(context, trip.id, trip.name),
+              ),
+              const SizedBox(width: 8),
               _RoundButton(icon: Icons.person_add_alt, onTap: () => _addPeople(context, s)),
               const SizedBox(width: 8),
               _RoundButton(icon: Icons.pie_chart_outline, onTap: () => context.push('/trip/${trip.id}/summary')),

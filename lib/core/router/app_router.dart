@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/cloud/share_join.dart';
 import '../../features/expenses/presentation/add_expense_page.dart';
 import '../../features/onboarding/login_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
@@ -45,6 +46,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/profile/setup', pageBuilder: (c, s) => _page(const ProfileSetupPage(), s)),
     GoRoute(path: '/profile/edit', pageBuilder: (c, s) => _page(const ProfileSetupPage(editing: true), s)),
     GoRoute(path: '/settings', pageBuilder: (c, s) => _page(const SettingsPage(), s)),
+    GoRoute(path: '/join', pageBuilder: (c, s) => _page(const JoinTripPage(), s)),
     GoRoute(path: '/trip/new', pageBuilder: (c, s) => _page(const CreateTripPage(), s)),
     GoRoute(
       path: '/trip/:id',
