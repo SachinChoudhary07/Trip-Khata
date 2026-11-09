@@ -15,7 +15,6 @@ dependencies:
   drift: ^2.22.0
   drift_flutter: ^0.2.4
   path_provider: ^2.1.4
-  google_fonts: ^6.2.1
   uuid: ^4.5.1
   intl: ^0.19.0
   url_launcher: ^6.3.1
@@ -44,6 +43,20 @@ flutter:
   assets:
     - assets/brand/
     - assets/onboarding/
+  fonts:
+    # Figtree (SIL OFL 1.1), bundled so the app looks right with no network.
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/Figtree-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Figtree-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Figtree-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Figtree-ExtraBold.ttf
+          weight: 800
 
 flutter_launcher_icons:
   android: true

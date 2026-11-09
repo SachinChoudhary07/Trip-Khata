@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Colours from the TripKhata design canvas.
 class AppColors {
@@ -33,6 +32,7 @@ class AppTheme {
   static ThemeData light() {
     final base = ThemeData(
       useMaterial3: true,
+      fontFamily: 'Figtree',
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
@@ -43,7 +43,8 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: AppColors.background,
     );
-    final text = GoogleFonts.figtreeTextTheme(base.textTheme).apply(
+    final text = base.textTheme.apply(
+      fontFamily: 'Figtree',
       bodyColor: AppColors.text,
       displayColor: AppColors.text,
     );
