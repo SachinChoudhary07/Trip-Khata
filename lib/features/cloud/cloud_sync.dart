@@ -153,6 +153,58 @@ class CloudSync extends ChangeNotifier {
     return doc.id;
   }
 
+  /// True when the signed-in user created this shared trip. Null if unknown (offline).
+  Future<bool?> isOwner(String tripId) async {
+    if (user == null) return null;
+    try {
+      final d = await _tripDoc(tripId).get();
+      return d.data()?['ownerUid'] == user!.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _stopTrip(String tripId) {
+    for (final s in _tripSubs.remove(tripId) ?? const <StreamSubscription<Object?>>[]) {
+      s.cancel();
+    }
+  }
+
+  /// Leave a shared trip: you stop syncing and it is removed from this phone.
+  /// Everyone else keeps the trip and its history.
+  Future<void> leaveTrip(String tripId) async {
+    _stopTrip(tripId);
+    final u = user;
+    if (_available && u != null) {
+      unawaited(_tripDoc(tripId)
+          .update({'memberUids': FieldValue.arrayRemove([u.uid])})
+          .catchError((Object e) => debugPrint('Leave failed: $e')));
+    }
+    await _repo.deleteTrip(tripId);
+  }
+
+  /// Owner only: delete the shared trip for everyone, then from this phone.
+  Future<void> deleteForEveryone(String tripId) async {
+    _stopTrip(tripId);
+    if (_available && user != null) {
+      final ref = _tripDoc(tripId);
+      for (final sub in _subcollections.values) {
+        try {
+          final snap = await ref.collection(sub).get();
+          final batch = _fs.batch();
+          for (final d in snap.docs) {
+            batch.delete(d.reference);
+          }
+          unawaited(batch.commit().catchError((Object e) => debugPrint('Delete failed: $e')));
+        } catch (e) {
+          debugPrint('Delete failed: $e');
+        }
+      }
+      unawaited(ref.delete().catchError((Object e) => debugPrint('Delete failed: $e')));
+    }
+    await _repo.deleteTrip(tripId);
+  }
+
   // ---------- background sync ----------
 
   void _startSync() {
@@ -183,6 +235,11 @@ class CloudSync extends ChangeNotifier {
     try {
       final batch = _fs.batch();
       for (final r in rows.take(400)) {
+        if (r.entity == 'trip') {
+          final doc = await _repo.exportTripDoc(r.tripId);
+          if (doc != null) batch.set(_tripDoc(r.tripId), doc, SetOptions(merge: true));
+          continue;
+        }
         final ref = _tripDoc(r.tripId).collection(_subcollections[r.entity]!).doc(r.entityId);
         final data = r.op == 'delete' ? null : await _repo.exportEntity(r.entity, r.entityId);
         if (data == null) {

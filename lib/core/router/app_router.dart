@@ -61,6 +61,10 @@ final appRouter = GoRouter(
           pageBuilder: (c, s) => _page(BalancesPage(tripId: s.pathParameters['id']!), s),
         ),
         GoRoute(
+          path: 'edit',
+          pageBuilder: (c, s) => _page(CreateTripPage(tripId: s.pathParameters['id']!), s),
+        ),
+        GoRoute(
           path: 'route',
           pageBuilder: (c, s) => _page(RoutePage(tripId: s.pathParameters['id']!), s),
         ),

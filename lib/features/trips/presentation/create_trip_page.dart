@@ -11,7 +11,10 @@ import 'contact_picker.dart';
 
 /// New trip: cover, name, places, dates, budget and people, on one screen.
 class CreateTripPage extends StatefulWidget {
-  const CreateTripPage({super.key});
+  const CreateTripPage({super.key, this.tripId});
+
+  /// When set, edits this trip's details instead of creating a new trip.
+  final String? tripId;
 
   @override
   State<CreateTripPage> createState() => _CreateTripPageState();
@@ -31,9 +34,25 @@ class _CreateTripPageState extends State<CreateTripPage> {
   bool _saving = false;
   String? _myUpi;
 
+  bool get _editing => widget.tripId != null;
+
   @override
   void initState() {
     super.initState();
+    if (_editing) {
+      context.read<TripRepository>().getTrip(widget.tripId!).then((t) {
+        if (t == null || !mounted) return;
+        setState(() {
+          _name.text = t.name;
+          _from.text = t.fromPlace;
+          _to.text = t.toPlace;
+          _cover = t.cover;
+          _budget.text = t.budget == null ? '' : '${t.budget! ~/ 100}';
+          if (t.startDate != null) _dates = DateTimeRange(start: t.startDate!, end: t.endDate ?? t.startDate!);
+        });
+      });
+      return;
+    }
     context.read<TripRepository>().getProfile().then((p) {
       if (p == null || !mounted) return;
       setState(() {
@@ -78,6 +97,21 @@ class _CreateTripPageState extends State<CreateTripPage> {
       return;
     }
     setState(() => _saving = true);
+    final budgetRupees = int.tryParse(_budget.text.replaceAll(',', '').trim());
+    if (_editing) {
+      await context.read<TripRepository>().updateTrip(
+            widget.tripId!,
+            name: name,
+            fromPlace: _from.text.trim(),
+            toPlace: _to.text.trim(),
+            startDate: _dates?.start,
+            endDate: _dates?.end,
+            budget: budgetRupees == null ? null : budgetRupees * 100,
+            cover: _cover,
+          );
+      if (mounted) context.pop();
+      return;
+    }
     final id = await context.read<TripRepository>().createTrip(
           name: name,
           myName: _myName.text.trim().isEmpty ? 'You' : _myName.text.trim(),
@@ -102,14 +136,14 @@ class _CreateTripPageState extends State<CreateTripPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
-        title: const Text('New trip'),
+        title: Text(_editing ? 'Edit trip' : 'New trip'),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: FilledButton(
             onPressed: _saving ? null : _save,
-            child: Text('Create trip · ${_people.length + 1} people'),
+            child: Text(_editing ? 'Save changes' : 'Create trip · ${_people.length + 1} people'),
           ),
         ),
       ),
@@ -156,6 +190,13 @@ class _CreateTripPageState extends State<CreateTripPage> {
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Budget (optional)', prefixText: '₹ '),
         ),
+        if (_editing)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 16, 4, 0),
+            child: Text('People are added from the trip screen (👤+). Old expenses keep their split.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          ),
+        if (!_editing) ...[
         const SectionLabel('People', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
         TextField(controller: _myName, decoration: const InputDecoration(labelText: 'Your name')),
         const SizedBox(height: 12),
@@ -198,6 +239,7 @@ class _CreateTripPageState extends State<CreateTripPage> {
               onDeleted: () => setState(() => _people.removeAt(i)),
             ),
         ]),
+        ],
       ]),
     );
   }

@@ -10,6 +10,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/trip_cover.dart';
 import '../../../db/app_database.dart';
 import '../data/trip_repository.dart';
+import '../../cloud/cloud_sync.dart';
 import '../../cloud/share_join.dart';
 import 'contact_picker.dart';
 import 'home_page.dart' show dateRange;
@@ -62,6 +63,8 @@ class _TripView extends StatelessWidget {
               _RoundButton(icon: Icons.person_add_alt, onTap: () => _addPeople(context, s)),
               const SizedBox(width: 8),
               _RoundButton(icon: Icons.pie_chart_outline, onTap: () => context.push('/trip/${trip.id}/summary')),
+              const SizedBox(width: 8),
+              _RoundButton(icon: Icons.more_vert, onTap: () => _tripMenu(context, s)),
               const SizedBox(width: 12),
             ],
             flexibleSpace: LayoutBuilder(builder: (context, box) {
@@ -187,6 +190,105 @@ class _TripView extends StatelessWidget {
         ]),
       );
     });
+  }
+
+  /// Edit / delete / leave, depending on whether the trip is shared.
+  Future<void> _tripMenu(BuildContext context, TripDetailState s) async {
+    final trip = s.trip!;
+    final cloud = context.read<CloudSync>();
+    final shared = trip.joinCode != null;
+    final owner = shared ? await cloud.isOwner(trip.id) : null;
+    if (!context.mounted) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit trip'),
+            subtitle: const Text('Name, places, dates, budget, cover'),
+            onTap: () => Navigator.pop(c, 'edit'),
+          ),
+          if (!shared)
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.owe),
+              title: const Text('Delete trip', style: TextStyle(color: AppColors.owe)),
+              subtitle: const Text('Removes it and all its expenses from this phone'),
+              onTap: () => Navigator.pop(c, 'delete'),
+            ),
+          if (shared)
+            ListTile(
+              leading: const Icon(Icons.logout, color: AppColors.owe),
+              title: const Text('Leave trip', style: TextStyle(color: AppColors.owe)),
+              subtitle: const Text('Stop syncing and remove it from this phone. Others keep it.'),
+              onTap: () => Navigator.pop(c, 'leave'),
+            ),
+          if (shared && owner == true)
+            ListTile(
+              leading: const Icon(Icons.delete_forever_outlined, color: AppColors.owe),
+              title: const Text('Delete for everyone', style: TextStyle(color: AppColors.owe)),
+              subtitle: const Text('You created this trip. It disappears from all phones.'),
+              onTap: () => Navigator.pop(c, 'deleteAll'),
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+    if (action == 'edit') {
+      context.push('/trip/${trip.id}/edit');
+      return;
+    }
+    final unsettled = s.transfers.isNotEmpty;
+    final (title, body, button) = switch (action) {
+      'delete' => (
+          'Delete “${trip.name}”?',
+          'All ${s.expenses.length} expenses, stops and bill photos of this trip will be deleted from this phone. This can’t be undone.',
+          'Delete',
+        ),
+      'leave' => (
+          'Leave “${trip.name}”?',
+          '${unsettled ? 'Some payments are still pending. ' : ''}The trip will be removed from this phone. '
+              'Everyone else keeps it, and you can join again with the code.',
+          'Leave',
+        ),
+      _ => (
+          'Delete “${trip.name}” for everyone?',
+          'It will disappear from every phone in the group, with all expenses. This can’t be undone.',
+          'Delete for everyone',
+        ),
+    };
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.owe, minimumSize: const Size(0, 44)),
+            onPressed: () => Navigator.pop(d, true),
+            child: Text(button),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final repo = context.read<TripRepository>();
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    router.go('/home');
+    switch (action) {
+      case 'delete':
+        await repo.deleteTrip(trip.id);
+      case 'leave':
+        await cloud.leaveTrip(trip.id);
+      default:
+        await cloud.deleteForEveryone(trip.id);
+    }
+    messenger.showSnackBar(SnackBar(content: Text(action == 'leave' ? 'You left ${trip.name}' : '${trip.name} deleted')));
   }
 
   Future<void> _addPeople(BuildContext context, TripDetailState s) async {

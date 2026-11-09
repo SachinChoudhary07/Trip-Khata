@@ -201,4 +201,20 @@ void main() {
     expect(await db2.select(db2.expenses).get(), isEmpty);
     expect(await db2.select(db2.expenseShares).get(), isEmpty);
   });
+
+  test('updateTrip changes details, queues the trip when shared, deleteTrip clears the outbox', () async {
+    final id = await repo.createTrip(name: 'Old', myName: 'A', otherNames: []);
+    await repo.updateTrip(id, name: 'New name', fromPlace: 'Indore', toPlace: 'Goa', budget: 500000, cover: 'beach');
+    var t = (await repo.getTrip(id))!;
+    expect([t.name, t.fromPlace, t.toPlace, t.budget, t.cover], ['New name', 'Indore', 'Goa', 500000, 'beach']);
+    expect(await db.select(db.outbox).get(), isEmpty, reason: 'not shared: nothing to sync');
+
+    await repo.markShared(id, 'XYZ789', 'uid');
+    await repo.updateTrip(id, name: 'Shared');
+    expect((await db.select(db.outbox).get()).map((o) => o.entity), ['trip']);
+
+    await repo.deleteTrip(id);
+    expect(await repo.getTrip(id), isNull);
+    expect(await db.select(db.outbox).get(), isEmpty);
+  });
 }

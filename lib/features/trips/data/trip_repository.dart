@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -296,8 +298,44 @@ class TripRepository {
     if (e != null) await _queue(e.tripId, 'expense', id, op: 'delete');
   }
 
-  /// Deletes a trip and everything in it.
-  Future<void> deleteTrip(String tripId) => _db.transaction(() async {
+  /// Updates a trip's details (name, places, dates, budget, cover).
+  Future<void> updateTrip(
+    String tripId, {
+    required String name,
+    String fromPlace = '',
+    String toPlace = '',
+    DateTime? startDate,
+    DateTime? endDate,
+    int? budget,
+    String cover = 'desert',
+  }) async {
+    await (_db.update(_db.trips)..where((t) => t.id.equals(tripId))).write(TripsCompanion(
+          name: Value(name),
+          fromPlace: Value(fromPlace),
+          toPlace: Value(toPlace),
+          startDate: Value(startDate),
+          endDate: Value(endDate),
+          budget: Value(budget),
+          cover: Value(cover),
+          updatedAt: Value(DateTime.now()),
+        ));
+    await _queue(tripId, 'trip', tripId);
+  }
+
+  /// Deletes a trip and everything in it (also its pending sync changes).
+  Future<void> deleteTrip(String tripId) async {
+    final bills = await (_db.select(_db.expenses)..where((e) => e.tripId.equals(tripId) & e.billPath.isNotNull())).get();
+    for (final e in bills) {
+      try {
+        final f = File(e.billPath!);
+        if (f.existsSync()) f.deleteSync();
+      } catch (_) {}
+    }
+    await _deleteTripRows(tripId);
+  }
+
+  Future<void> _deleteTripRows(String tripId) => _db.transaction(() async {
+        await (_db.delete(_db.outbox)..where((o) => o.tripId.equals(tripId))).go();
         await (_db.delete(_db.expenseShares)..where((s) => s.tripId.equals(tripId))).go();
         await (_db.delete(_db.expenses)..where((e) => e.tripId.equals(tripId))).go();
         await (_db.delete(_db.settlements)..where((s) => s.tripId.equals(tripId))).go();
