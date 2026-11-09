@@ -35,7 +35,7 @@ On first launch, tap **Try a sample trip** to see the Indore → Udaipur demo da
 | Route map (OpenStreetMap), GPS check-in linked to expenses | Done |
 | Trip summary: donut, highlights, share text, PDF | Done |
 | Settings: voice language, daily 9 PM reminder, CSV export | Done |
-| Google sign-in, cloud backup and sync | v2 |
+| Google sign-in, share trip by code, join, offline-first cloud sync | Done, off until Firebase is set up: see [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md) |
 
 ## Structure
 
