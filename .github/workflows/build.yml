@@ -1,5 +1,5 @@
 # Free CI: test and build a release APK on every push (GitHub Actions).
-# Pushing a tag like v0.2.0 also publishes the APK as a GitHub Release.
+# A tag like v0.2.0, or a commit message containing [release], also publishes a GitHub Release.
 name: build
 on:
   push:
@@ -41,11 +41,18 @@ jobs:
           name: tripkhata-apk
           path: build/app/outputs/flutter-apk/app-release.apk
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Runs for tags like v0.2.0, or for a main commit whose message contains [release]
+        # (the version then comes from pubspec.yaml).
+        if: startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[release]')
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk "tripkhata-${GITHUB_REF_NAME}.apk"
-          gh release create "$GITHUB_REF_NAME" "tripkhata-${GITHUB_REF_NAME}.apk" \
-            --title "TripKhata ${GITHUB_REF_NAME}" \
-            --notes "Install: download the APK on your Android phone and open it (allow installing from this source). Works offline."
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="v$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')"
+          fi
+          cp build/app/outputs/flutter-apk/app-release.apk "tripkhata-${TAG}.apk"
+          gh release create "$TAG" "tripkhata-${TAG}.apk" --target "$GITHUB_SHA" \
+            --title "TripKhata ${TAG}" \
+            --notes "Download the APK on your Android phone and open it (allow installing from this source). Works fully offline."
         env:
           GH_TOKEN: ${{ github.token }}
