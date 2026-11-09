@@ -193,11 +193,11 @@ class _Group extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FadeSlideIn(
         delay: Duration(milliseconds: delay),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
+        child: Material(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line),
+            side: const BorderSide(color: AppColors.line),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(children: children),

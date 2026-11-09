@@ -246,8 +246,10 @@ class _CheckInViewState extends State<_CheckInView> {
             const SizedBox(height: 12),
             TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note (optional)')),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(14)),
+            Material(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
               child: SwitchListTile(
                 title: const Text('Also add an expense', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: Text(_withExpense ? 'Paid by you · split with everyone' : 'Only save the place'),

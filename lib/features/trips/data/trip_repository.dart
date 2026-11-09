@@ -276,8 +276,22 @@ class TripRepository {
       (_db.update(_db.members)..where((m) => m.id.equals(memberId)))
           .write(MembersCompanion(upiId: Value(upiId)));
 
-  Future<void> deleteExpense(String id) =>
-      (_db.delete(_db.expenses)..where((e) => e.id.equals(id))).go();
+  /// Deletes an expense and its shares. Done explicitly instead of relying on
+  /// SQLite's ON DELETE CASCADE, so balances can never keep orphaned shares.
+  Future<void> deleteExpense(String id) => _db.transaction(() async {
+        await (_db.delete(_db.expenseShares)..where((s) => s.expenseId.equals(id))).go();
+        await (_db.delete(_db.expenses)..where((e) => e.id.equals(id))).go();
+      });
+
+  /// Deletes a trip and everything in it.
+  Future<void> deleteTrip(String tripId) => _db.transaction(() async {
+        await (_db.delete(_db.expenseShares)..where((s) => s.tripId.equals(tripId))).go();
+        await (_db.delete(_db.expenses)..where((e) => e.tripId.equals(tripId))).go();
+        await (_db.delete(_db.settlements)..where((s) => s.tripId.equals(tripId))).go();
+        await (_db.delete(_db.places)..where((p) => p.tripId.equals(tripId))).go();
+        await (_db.delete(_db.members)..where((m) => m.tripId.equals(tripId))).go();
+        await (_db.delete(_db.trips)..where((t) => t.id.equals(tripId))).go();
+      });
 
   Future<void> addSettlement({
     required String tripId,

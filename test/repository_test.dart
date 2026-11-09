@@ -91,7 +91,7 @@ void main() {
     expect(names, unorderedEquals(['A', 'Rahul', 'Neha']));
   });
 
-  test('deleting a trip removes its expenses and shares', () async {
+  test('deleting an expense or a trip leaves no orphaned rows', () async {
     final id = await repo.createTrip(name: 'T', myName: 'A', otherNames: ['B']);
     final m = await ids(id);
     await repo.addExpense(
@@ -102,7 +102,21 @@ void main() {
       paidBy: m['A']!,
       shares: [NewShare(m['A']!, 100), NewShare(m['B']!, 100)],
     );
-    await (db.delete(db.trips)..where((t) => t.id.equals(id))).go();
+    final e = await db.select(db.expenses).getSingle();
+    await repo.deleteExpense(e.id);
+    expect(await db.select(db.expenseShares).get(), isEmpty, reason: 'shares go with the expense');
+
+    await repo.addExpense(
+      tripId: id,
+      title: 'Y',
+      amount: 200,
+      category: 'other',
+      paidBy: m['A']!,
+      shares: [NewShare(m['A']!, 100), NewShare(m['B']!, 100)],
+    );
+    await repo.deleteTrip(id);
+    expect(await db.select(db.trips).get(), isEmpty);
+    expect(await db.select(db.members).get(), isEmpty);
     expect(await db.select(db.expenses).get(), isEmpty);
     expect(await db.select(db.expenseShares).get(), isEmpty);
   });
