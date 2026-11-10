@@ -27,6 +27,12 @@ service cloud.firestore {
           && request.auth.uid in get(/databases/$(database)/documents/tripkhata_trips/$(tripId)).data.memberUids;
       }
     }
+
+    // Push tokens: each person reads and writes only their own doc.
+    // The Cloud Function uses the Admin SDK, which skips these rules.
+    match /tripkhata_users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
     // ---- TripKhata: end ----
 
   }

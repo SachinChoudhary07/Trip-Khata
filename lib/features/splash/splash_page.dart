@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/categories.dart';
+import '../../core/reminders.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
 import '../trips/data/trip_repository.dart';
@@ -37,7 +39,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     if (!mounted || _left) return;
     _left = true;
     final profile = await context.read<TripRepository>().getProfile();
-    if (mounted) context.go(profile == null ? '/onboarding' : '/home');
+    if (!mounted) return;
+    context.go(profile == null ? '/onboarding' : '/home');
+    if (profile == null) return;
+    // From here on, tapping a trip notification opens that trip. A tap that
+    // launched the app was held back until home was up.
+    Reminders.onOpenTrip = (id) => appRouter.push('/trip/$id');
+    final pending = Reminders.takeLaunchTrip();
+    if (pending != null) appRouter.push('/trip/$pending');
   }
 
   @override

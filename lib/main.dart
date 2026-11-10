@@ -13,8 +13,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final repo = TripRepository(AppDatabase());
   final cloud = CloudSync(repo);
-  Reminders.init();
+  await Reminders.init();
   await cloud.init(); // no-op when this build has no Firebase settings
+  // Notification taps are routed from the splash screen once home is up.
   runApp(TripKhataApp(repository: repo, cloud: cloud));
 }
 

@@ -1,0 +1,10 @@
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "tripkhata",
+      "runtime": "nodejs20",
+      "ignore": ["node_modules", ".git", "*.local"]
+    }
+  ]
+}

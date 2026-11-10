@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/reminders.dart';
+import '../cloud/push_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/money.dart';
 import '../../core/widgets/common.dart';
@@ -111,15 +112,27 @@ class SettingsPage extends StatelessWidget {
                         await Reminders.setEnabled(v);
                       },
               ),
+              const Divider(),
+              SwitchListTile(
+                secondary: const Icon(Icons.group_outlined, color: AppColors.textMuted),
+                title: const Text('Friends’ expenses'),
+                subtitle: const Text('Notify me when someone adds or changes an expense in a shared trip'),
+                value: p?.notifyActivity ?? true,
+                onChanged: p == null
+                    ? null
+                    : (v) async {
+                        await repo.updateSettings(notifyActivity: v);
+                        await PushService.setNotify(v);
+                        if (v) await Reminders.requestPermission();
+                      },
+              ),
             ]),
             const SectionLabel('Data', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
             _Group(delay: 180, children: [
-              const SwitchListTile(
-                secondary: Icon(Icons.cloud_outlined, color: AppColors.textMuted),
-                title: Text('Back up to cloud'),
-                subtitle: Text('Coming in v2. Trips stay only on this phone for now.'),
-                value: false,
-                onChanged: null,
+              const ListTile(
+                leading: Icon(Icons.cloud_outlined, color: AppColors.textMuted),
+                title: Text('Cloud sync'),
+                subtitle: Text('Shared trips sync automatically. Other trips stay only on this phone.'),
               ),
               const Divider(),
               ListTile(

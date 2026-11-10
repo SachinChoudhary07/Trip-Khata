@@ -80,10 +80,11 @@ class TripRepository {
             reminders: reminders == null ? const Value.absent() : Value(reminders),
           ));
 
-  Future<void> updateSettings({String? voiceLang, bool? reminders}) =>
+  Future<void> updateSettings({String? voiceLang, bool? reminders, bool? notifyActivity}) =>
       (_db.update(_db.profiles)..where((p) => p.id.equals(1))).write(ProfilesCompanion(
         voiceLang: voiceLang == null ? const Value.absent() : Value(voiceLang),
         reminders: reminders == null ? const Value.absent() : Value(reminders),
+        notifyActivity: notifyActivity == null ? const Value.absent() : Value(notifyActivity),
       ));
 
   Future<String> addPlace({

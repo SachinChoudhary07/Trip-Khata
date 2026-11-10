@@ -98,6 +98,9 @@ class Profiles extends Table {
   TextColumn get voiceLang => text().withDefault(const Constant('hi'))();
   BoolColumn get reminders => boolean().withDefault(const Constant(true))();
 
+  /// Notify when friends add or change expenses in shared trips.
+  BoolColumn get notifyActivity => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -124,7 +127,7 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -142,6 +145,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(trips, trips.joinCode);
             await m.addColumn(members, members.uid);
             await m.createTable(outbox);
+          }
+          if (from < 5) {
+            await m.addColumn(profiles, profiles.notifyActivity);
           }
         },
         beforeOpen: (details) async {

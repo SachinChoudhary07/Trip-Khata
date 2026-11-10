@@ -16,6 +16,33 @@ Three things must be done once in the Firebase console:
    add the block, don't replace their rules. TripKhata only uses the
    `tripkhata_trips` collection.
 
+4. **Push notifications (Blaze plan)**: deploy the Cloud Function once from your laptop.
+   It pushes "Rahul added ₹1,500 · Petrol · Manali · your share ₹375" to everyone else
+   in a shared trip, even when their app is closed.
+
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   cd Trip-Khata/functions && npm ci && cd ..
+   firebase deploy --only functions:tripkhata --project flutter-apps-975a6
+   ```
+
+   - Always deploy with `--only functions:tripkhata`. The project is shared with other
+     apps, and this keeps their functions untouched.
+   - The first deploy asks for `FIRESTORE_REGION`: use the location shown at the top of
+     Firebase console → Firestore (e.g. `asia-south1`; `nam5` → `us-central1`,
+     `eur3` → `europe-west1`). It's saved in `functions/.env.flutter-apps-975a6`.
+   - If it asks to enable APIs (Cloud Functions, Cloud Build, Artifact Registry,
+     Eventarc), say yes.
+   - Re-publish the Firestore rules: the block now also covers `tripkhata_users`
+     (each phone's push token).
+   - Cost: a few function runs per expense. This is far inside Blaze's free monthly
+     quota (2 million invocations), so a normal group trip costs ₹0. Setting a
+     budget alert in Google Cloud Billing is still a good idea.
+
+   Without the function the app still works: friends get a notification while their app
+   is open, and on the next open for anything that came in while it was closed.
+
 ---
 
 ## Using your own Firebase project or a private release key later

@@ -143,6 +143,15 @@ void main() {
     expect(await db.select(db.profiles).get(), hasLength(1));
   });
 
+  test('friends-activity notifications are on by default and can be turned off', () async {
+    await repo.saveProfile(name: 'Sachin', upiId: '');
+    expect((await repo.getProfile())!.notifyActivity, isTrue);
+    await repo.updateSettings(notifyActivity: false);
+    final p = await repo.getProfile();
+    expect(p!.notifyActivity, isFalse);
+    expect(p.reminders, isTrue);
+  });
+
   test('CSV export has a header and one row per expense', () async {
     final id = await repo.createTrip(name: 'Goa "2026"', myName: 'A', otherNames: ['B']);
     final m = await ids(id);

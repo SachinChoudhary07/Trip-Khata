@@ -11,6 +11,16 @@ permissions:
   contents: write
 
 jobs:
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci && npm test && FIRESTORE_REGION=asia-south1 node -e "require('./index')"
+        working-directory: functions
+
   apk:
     runs-on: ubuntu-latest
     steps:

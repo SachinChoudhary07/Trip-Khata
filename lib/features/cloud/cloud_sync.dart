@@ -5,10 +5,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../core/reminders.dart';
+import '../../core/utils/money.dart';
 import '../../db/app_database.dart';
 import '../trips/data/trip_repository.dart';
+import 'push_service.dart';
 
 /// Firebase settings for the `com.trip_khata.trip_khata` Android app in the
 /// flutter-apps-975a6 project (from google-services.json; these values are
@@ -78,9 +82,16 @@ class CloudSync extends ChangeNotifier {
         serverClientId: CloudConfig.webClientId.isEmpty ? null : CloudConfig.webClientId,
       );
       _available = true;
-      _authSub = FirebaseAuth.instance.authStateChanges().listen((u) {
+      unawaited(PushService.init());
+      _authSub = FirebaseAuth.instance.authStateChanges().listen((u) async {
         notifyListeners();
-        u == null ? _stopSync() : _startSync();
+        if (u == null) {
+          _stopSync();
+          return;
+        }
+        _startSync();
+        final profile = await _repo.getProfile();
+        unawaited(PushService.register(u.uid, notify: profile?.notifyActivity ?? true));
       });
     } catch (e) {
       debugPrint('Cloud disabled: $e');
@@ -103,6 +114,7 @@ class CloudSync extends ChangeNotifier {
 
   Future<void> signOut() async {
     if (!_available) return;
+    await PushService.unregister();
     await GoogleSignIn.instance.signOut();
     await FirebaseAuth.instance.signOut();
     notifyListeners();
@@ -122,6 +134,7 @@ class CloudSync extends ChangeNotifier {
     final trip = await _repo.getTrip(tripId);
     if (trip == null) throw SyncException('Trip not found.');
     final code = trip.joinCode ?? _newCode();
+    unawaited(Reminders.requestPermission());
     await _repo.markShared(tripId, code, u.uid);
 
     final doc = (await _repo.exportTripDoc(tripId))!;
@@ -146,6 +159,7 @@ class CloudSync extends ChangeNotifier {
   Future<String> joinTrip(String rawCode) async {
     final code = rawCode.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     final u = user ?? await signInWithGoogle();
+    unawaited(Reminders.requestPermission());
     final q = await _fs.collection(CloudConfig.tripsCollection).where('joinCode', isEqualTo: code).limit(1).get();
     if (q.docs.isEmpty) throw SyncException('No trip found for code $code.');
     final doc = q.docs.first;
@@ -252,12 +266,16 @@ class CloudSync extends ChangeNotifier {
         final data = r.op == 'delete' ? null : await _repo.exportEntity(r.entity, r.entityId);
         if (data == null) {
           if (r.entity == 'expense') {
-            batch.set(ref, {'deleted': true, 'updatedAt': DateTime.now().millisecondsSinceEpoch}, SetOptions(merge: true));
+            batch.set(
+              ref,
+              {'deleted': true, 'updatedAt': DateTime.now().millisecondsSinceEpoch, 'editedBy': user!.uid},
+              SetOptions(merge: true),
+            );
           } else {
             batch.delete(ref);
           }
         } else {
-          batch.set(ref, data);
+          batch.set(ref, r.entity == 'expense' ? {...data, 'editedBy': user!.uid} : data);
         }
       }
       // Firestore keeps the batch in its own offline queue, so the outbox
@@ -281,15 +299,88 @@ class CloudSync extends ChangeNotifier {
       }, onError: (Object e) => debugPrint('Trip listen error: $e')),
     ];
     for (final e in _subcollections.entries) {
+      var firstSnapshot = true;
       subs.add(_tripDoc(tripId).collection(e.value).snapshots().listen((snap) async {
+        final catchUp = firstSnapshot;
+        firstSnapshot = false;
+        final activity = <_Activity>[];
         for (final c in snap.docChanges) {
           if (c.type == DocumentChangeType.removed) continue;
           final d = c.doc.data();
-          if (d != null) await _repo.applyRemote(tripId, e.key, c.doc.id, d, myUid: uid);
+          if (d == null) continue;
+          if (e.key == 'expense') {
+            final before = await _repo.getExpense(c.doc.id);
+            final by = d['editedBy'] as String?;
+            final fromOther = by != null && by != uid && !c.doc.metadata.hasPendingWrites;
+            final remoteUpdated = d['updatedAt'] is int ? d['updatedAt'] as int : 0;
+            final isNewer = before == null || before.updatedAt.millisecondsSinceEpoch < remoteUpdated;
+            if (fromOther && isNewer) {
+              final deleted = d['deleted'] == true;
+              if (!(deleted && before == null)) {
+                activity.add(_Activity(
+                  by: by,
+                  kind: deleted ? 'deleted' : (before == null ? 'added' : 'edited'),
+                  title: (d['title'] as String?) ?? before?.title ?? 'an expense',
+                  amount: d['amount'] is num ? (d['amount'] as num).toInt() : (before?.amount ?? 0),
+                  shares: (d['shares'] as Map?)?.map((k, v) => MapEntry(k as String, (v as num).toInt())) ?? const {},
+                ));
+              }
+            }
+          }
+          await _repo.applyRemote(tripId, e.key, c.doc.id, d, myUid: uid);
         }
+        if (activity.isNotEmpty && _shouldNotifyLocally(catchUp)) await _notify(tripId, activity, uid);
       }, onError: (Object err) => debugPrint('Sync listen error: $err')));
     }
     _tripSubs[tripId] = subs;
+  }
+
+  /// With push working, the Cloud Function covers the background and closed
+  /// app, so local notices are only for changes that arrive while the app is
+  /// on screen (Android doesn't show pushes for a foreground app). Without
+  /// push (function not deployed, no Play services) local notices cover
+  /// everything, including what arrived while the app was closed.
+  bool _shouldNotifyLocally(bool catchUp) {
+    if (!PushService.active) return true;
+    if (catchUp) return false;
+    return WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  }
+
+  /// "Rahul added ₹1,500 · Petrol", or a summary when several arrive at once.
+  Future<void> _notify(String tripId, List<_Activity> items, String myUid) async {
+    final profile = await _repo.getProfile();
+    if (profile != null && !profile.notifyActivity) return;
+    final trip = await _repo.getTrip(tripId);
+    final members = await _repo.getMembers(tripId);
+    String who(String uid) => members.where((m) => m.uid == uid).firstOrNull?.name ?? 'Someone';
+    final me = members.where((m) => m.uid == myUid).firstOrNull;
+    final tripName = trip?.name ?? 'your trip';
+
+    if (items.length == 1) {
+      final a = items.single;
+      final myShare = me == null ? null : a.shares[me.id];
+      final title = switch (a.kind) {
+        'added' => '${who(a.by)} added ${formatPaise(a.amount)}',
+        'edited' => '${who(a.by)} edited ${a.title}',
+        _ => '${who(a.by)} deleted ${a.title}',
+      };
+      final body = [
+        if (a.kind != 'deleted') a.title,
+        tripName,
+        if (a.kind != 'deleted') myShare == null || myShare == 0 ? 'not in your share' : 'your share ${formatPaise(myShare)}',
+      ].join(' · ');
+      await Reminders.showActivity(tripId: tripId, title: title, body: body);
+      return;
+    }
+    final names = items.map((a) => who(a.by)).toSet().toList();
+    final added = items.where((a) => a.kind == 'added');
+    final total = added.fold<int>(0, (s, a) => s + a.amount);
+    final people = names.length == 1 ? names.first : '${names.first} and ${names.length - 1} other${names.length > 2 ? 's' : ''}';
+    await Reminders.showActivity(
+      tripId: tripId,
+      title: '${items.length} updates in $tripName',
+      body: added.isEmpty ? '$people changed expenses' : '$people added ${formatPaise(total)} in total',
+    );
   }
 
   @override
@@ -298,4 +389,13 @@ class CloudSync extends ChangeNotifier {
     _authSub?.cancel();
     super.dispose();
   }
+}
+
+class _Activity {
+  const _Activity({required this.by, required this.kind, required this.title, required this.amount, required this.shares});
+  final String by;
+  final String kind;
+  final String title;
+  final int amount;
+  final Map<String, int> shares;
 }
