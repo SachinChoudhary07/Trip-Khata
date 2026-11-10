@@ -24,7 +24,7 @@ String _friendly(Object e) {
 Future<void> showShareTripSheet(BuildContext context, String tripId, String tripName) async {
   final cloud = context.read<CloudSync>();
   if (!cloud.available) {
-    _toast(context, 'Cloud sync isn’t set up in this build yet. The trip stays on this phone.');
+    _toast(context, 'Cloud sync isn’t available on this phone right now. The trip stays on this phone.');
     return;
   }
   String? code;
@@ -190,7 +190,7 @@ class _JoinTripPageState extends State<JoinTripPage> {
         ),
         const SizedBox(height: 20),
         if (!cloud.available)
-          const Text('Cloud sync isn’t set up in this build yet.',
+          const Text('Cloud sync isn’t available on this phone right now.',
               textAlign: TextAlign.center, style: TextStyle(color: AppColors.owe))
         else
           FilledButton(
@@ -217,7 +217,7 @@ class AccountCard extends StatelessWidget {
       body = const ListTile(
         leading: Icon(Icons.cloud_off_outlined, color: AppColors.textMuted),
         title: Text('Cloud sync'),
-        subtitle: Text('Not set up in this build. Everything is saved on this phone.'),
+        subtitle: Text('Not available on this phone right now. Everything is saved here.'),
       );
     } else if (u == null) {
       body = ListTile(

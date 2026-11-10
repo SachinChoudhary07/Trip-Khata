@@ -1,7 +1,7 @@
 name: tripkhata
 description: Group trip expense splitter. Offline-first, voice entry, route log.
 publish_to: 'none'
-version: 0.5.1+6
+version: 1.0.0+6
 
 environment:
   sdk: ^3.6.0

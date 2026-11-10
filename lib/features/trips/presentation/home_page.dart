@@ -505,13 +505,6 @@ class _EmptyHome extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        TextButton(
-          onPressed: () async {
-            final id = await context.read<TripsCubit>().createSample();
-            if (context.mounted) context.push('/trip/$id');
-          },
-          child: const Text('or try a sample trip'),
-        ),
         TextButton.icon(
           onPressed: () => context.push('/join'),
           icon: const Icon(Icons.group_add_outlined, size: 18),

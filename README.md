@@ -152,8 +152,6 @@ flutter test
 flutter run
 ```
 
-On first launch, tap **Try a sample trip** to load an Indore → Udaipur demo.
-
 Cloud features (sign-in, sharing, push, bill sync) need the Firebase steps in [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md). Without them, the app works fully offline on one phone.
 
 ### Cloud Functions

@@ -121,18 +121,6 @@ void main() {
     expect(await db.select(db.expenseShares).get(), isEmpty);
   });
 
-  test('sample trip is internally consistent', () async {
-    final id = await repo.createSampleTrip();
-    final expenses = await (db.select(db.expenses)..where((e) => e.tripId.equals(id))).get();
-    final shares = await db.select(db.expenseShares).get();
-    for (final e in expenses) {
-      final sum = shares.where((s) => s.expenseId == e.id).fold<int>(0, (a, s) => a + s.share);
-      expect(sum, e.amount, reason: e.title);
-    }
-    final places = await (db.select(db.places)..where((p) => p.tripId.equals(id))).get();
-    expect(places.length, 6);
-  });
-
   test('profile save is an upsert on a single row', () async {
     expect(await repo.getProfile(), isNull);
     await repo.saveProfile(name: 'Sachin', upiId: 'sachin@okaxis');

@@ -7,8 +7,8 @@ import '../../core/widgets/trip_cover.dart';
 import '../cloud/cloud_sync.dart';
 import '../trips/data/trip_repository.dart';
 
-/// v1 is fully offline, so both buttons lead to profile setup on this phone.
-/// Google sign-in (free on Firebase Spark) is wired in with cloud backup in v2.
+/// Sign in with Google (needed to share trips), or skip and use the app
+/// fully offline. Both lead to profile setup on this phone.
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -39,7 +39,7 @@ class LoginPage extends StatelessWidget {
                     const Text('Welcome to TripKhata',
                         style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
                     const SizedBox(height: 6),
-                    const Text('Set up on this phone in a few seconds. No account needed to start.',
+                    const Text('Split trip expenses with friends. Works offline, no account needed to start.',
                         style: TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.5)),
                     const SizedBox(height: 28),
                     FilledButton.icon(
@@ -49,7 +49,7 @@ class LoginPage extends StatelessWidget {
                         final messenger = ScaffoldMessenger.of(context);
                         if (!cloud.available) {
                           messenger.showSnackBar(const SnackBar(
-                            content: Text('Cloud sign-in isn’t set up in this build. Setting you up offline.'),
+                            content: Text('Google sign-in isn’t available on this phone. Setting you up offline.'),
                           ));
                           context.go('/profile/setup');
                           return;
@@ -61,7 +61,13 @@ class LoginPage extends StatelessWidget {
                           }
                           if (context.mounted) context.go('/profile/setup');
                         } catch (e) {
-                          messenger.showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
+                          final s = e.toString().toLowerCase();
+                          if (s.contains('cancel')) return; // closed the Google sheet
+                          messenger.showSnackBar(SnackBar(
+                            content: Text(s.contains('network')
+                                ? 'No internet. Try again, or skip and use offline.'
+                                : 'Google sign-in didn’t work. Try again, or skip and use offline.'),
+                          ));
                         }
                       },
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
@@ -75,15 +81,9 @@ class LoginPage extends StatelessWidget {
                       ),
                       label: const Text('Continue with Google'),
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.phone_android, size: 18),
-                      label: const Text('Use phone number'),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Phone login needs paid SMS, so it comes in a later version.',
-                        textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    const SizedBox(height: 10),
+                    const Text('Sign in to share trips with friends. You can also do this later in Settings.',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4)),
                     const Spacer(),
                     TextButton.icon(
                       onPressed: () => context.go('/profile/setup'),

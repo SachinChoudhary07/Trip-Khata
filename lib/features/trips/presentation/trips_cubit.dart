@@ -106,8 +106,6 @@ class TripsCubit extends Cubit<TripsState> {
     );
   }
 
-  Future<String> createSample() => _repo.createSampleTrip();
-
   Future<void> setActive(String? tripId) => _repo.setActiveTrip(tripId);
 
   @override

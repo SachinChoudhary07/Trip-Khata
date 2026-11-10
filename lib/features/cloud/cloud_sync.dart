@@ -133,7 +133,7 @@ class CloudSync extends ChangeNotifier {
   // ---------- auth ----------
 
   Future<User> signInWithGoogle() async {
-    if (!_available) throw SyncException('Cloud sync is not set up in this build.');
+    if (!_available) throw SyncException('Cloud sync isn’t available on this phone right now.');
     final account = await GoogleSignIn.instance.authenticate();
     final idToken = account.authentication.idToken;
     if (idToken == null) throw SyncException('Google did not return a sign-in token.');
