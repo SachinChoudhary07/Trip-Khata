@@ -2,11 +2,14 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/categories.dart';
 import '../../core/reminders.dart';
+import '../../core/startup.dart';
+import '../../db/app_database.dart';
 import '../widget/trip_widget.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -48,11 +51,25 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   bool _left = false;
 
+  Object? _error;
+
   Future<void> _go() async {
     if (!mounted || _left) return;
     _left = true;
     final repo = context.read<TripRepository>();
-    final profile = await repo.getProfile();
+    // Services start behind the splash; don't wait for them forever.
+    await AppStartup.ready.timeout(const Duration(seconds: 8), onTimeout: () {});
+    Profile? profile;
+    try {
+      profile = await repo.getProfile().timeout(const Duration(seconds: 15));
+    } catch (e, s) {
+      // The local database didn't open: show what happened instead of a
+      // frozen splash, and let the user try again.
+      AppStartup.report(e, s, reason: 'open database');
+      if (mounted) setState(() => _error = e);
+      _left = false;
+      return;
+    }
     if (!mounted) return;
     context.go(profile == null ? '/onboarding' : '/home');
     if (profile == null) return;
@@ -82,6 +99,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) return _StartupError(error: _error!, onRetry: () => setState(() {
+          _error = null;
+          _go();
+        }));
     final pop = _interval(0.0, 0.4, Curves.easeOutBack);
     final word = _interval(0.3, 0.6);
     final tag = _interval(0.4, 0.7);
@@ -309,4 +330,57 @@ class _HillsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HillsPainter old) => old.t != t;
+}
+
+/// Shown if the app can't open its data, instead of hanging on the splash.
+class _StartupError extends StatelessWidget {
+  const _StartupError({required this.error, required this.onRetry});
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = error.toString();
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Icon(Icons.error_outline, size: 40, color: AppColors.owe),
+            const SizedBox(height: 16),
+            const Text('TripKhata couldn’t open your data',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            const Text('Your trips are still on the phone. Try again, and if it keeps happening, copy the details and send them to us.',
+                style: TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.45)),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.line),
+                ),
+                child: SingleChildScrollView(
+                  child: SelectableText(details, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: details));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
+              },
+              icon: const Icon(Icons.copy, size: 18),
+              label: const Text('Copy details'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: onRetry, child: const Text('Try again')),
+          ]),
+        ),
+      ),
+    );
+  }
 }

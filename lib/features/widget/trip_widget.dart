@@ -65,7 +65,7 @@ class TripWidget {
   static Future<String?> launchAction() async {
     if (defaultTargetPlatform != TargetPlatform.android) return null;
     try {
-      return actionOf(await HomeWidget.initiallyLaunchedFromHomeWidget());
+      return actionOf(await HomeWidget.initiallyLaunchedFromHomeWidget().timeout(const Duration(seconds: 3)));
     } catch (_) {
       return null;
     }

@@ -142,37 +142,56 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 7;
 
+  /// Migrations must survive being half-applied or a table that was created
+  /// with today's columns (createTable uses the current schema), so every
+  /// step checks first instead of failing with "duplicate column".
+  Future<bool> _hasTable(String name) async =>
+      (await customSelect("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+              variables: [Variable.withString(name)])
+          .get())
+          .isNotEmpty;
+
+  Future<void> _createTable(Migrator m, TableInfo<Table, dynamic> table) async {
+    if (!await _hasTable(table.actualTableName)) await m.createTable(table);
+  }
+
+  Future<void> _addColumn(Migrator m, TableInfo<Table, dynamic> table, GeneratedColumn<Object> column) async {
+    final cols = await customSelect('PRAGMA table_info(${table.actualTableName})').get();
+    if (cols.any((r) => r.read<String>('name') == column.name)) return;
+    await m.addColumn(table, column);
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) {
-            await m.createTable(profiles);
-            await m.createTable(places);
-            await m.addColumn(expenses, expenses.placeId);
+            await _createTable(m, profiles);
+            await _createTable(m, places);
+            await _addColumn(m, expenses, expenses.placeId);
           }
           if (from < 3) {
-            await m.addColumn(expenses, expenses.billPath);
+            await _addColumn(m, expenses, expenses.billPath);
           }
           if (from < 4) {
-            await m.addColumn(trips, trips.joinCode);
-            await m.addColumn(members, members.uid);
-            await m.createTable(outbox);
+            await _addColumn(m, trips, trips.joinCode);
+            await _addColumn(m, members, members.uid);
+            await _createTable(m, outbox);
           }
           if (from < 5) {
-            await m.addColumn(profiles, profiles.notifyActivity);
+            await _addColumn(m, profiles, profiles.notifyActivity);
           }
           if (from < 6) {
-            await m.addColumn(profiles, profiles.activeTripId);
+            await _addColumn(m, profiles, profiles.activeTripId);
             // Existing users: the newest trip becomes the active one.
             await customStatement(
               'UPDATE profiles SET active_trip_id = (SELECT id FROM trips ORDER BY created_at DESC LIMIT 1)',
             );
           }
           if (from < 7) {
-            await m.addColumn(expenses, expenses.billRemote);
-            await m.addColumn(trips, trips.budgetAlerted);
-            await m.addColumn(profiles, profiles.notifyBudget);
+            await _addColumn(m, expenses, expenses.billRemote);
+            await _addColumn(m, trips, trips.budgetAlerted);
+            await _addColumn(m, profiles, profiles.notifyBudget);
             // Don't alert about budgets that were already crossed before this update.
             await customStatement('''
               UPDATE trips SET budget_alerted = CASE
