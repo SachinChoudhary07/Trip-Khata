@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../db/app_database.dart';
 import '../profile/settings_page.dart';
 import '../trips/data/trip_repository.dart';
 import '../trips/presentation/active_trip_sheet.dart';
@@ -34,16 +35,17 @@ class _ShellState extends State<_Shell> {
 
   Future<void> _onAdd() async {
     final state = context.read<TripsCubit>().state;
-    var trip = state.active?.trip;
-    if (trip == null && state.trips.isNotEmpty) {
+    Trip? picked = state.active?.trip;
+    if (picked == null && state.trips.isNotEmpty) {
       final id = await pickActiveTrip(context);
       if (!mounted || id == null) return;
-      trip = state.trips.firstWhere((t) => t.trip.id == id).trip;
+      picked = state.trips.firstWhere((t) => t.trip.id == id).trip;
     }
-    if (trip == null) {
+    if (picked == null) {
       context.push('/trip/new');
       return;
     }
+    final trip = picked;
     final choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,

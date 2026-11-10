@@ -300,7 +300,6 @@ class _TripView extends StatelessWidget {
       ),
     );
     if (ok != true || !context.mounted) return;
-    final repo = context.read<TripRepository>();
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
     router.go('/home');
