@@ -2,7 +2,7 @@
   "name": "tripkhata-functions",
   "private": true,
   "main": "index.js",
-  "engines": { "node": "20" },
+  "engines": { "node": "22" },
   "scripts": {
     "test": "node --test",
     "deploy": "firebase deploy --only functions:tripkhata"
