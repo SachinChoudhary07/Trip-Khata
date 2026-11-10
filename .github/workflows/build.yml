@@ -48,7 +48,11 @@ jobs:
               "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
             echo "Signing with the release key."
           else
-            echo "No KEYSTORE_BASE64 secret: signing with a debug key."
+            # Shared test key committed in keystore/. Its SHA-1 is registered in
+            # Firebase so Google sign-in works on CI builds. Use a private
+            # upload key (secrets above) before publishing on the Play Store.
+            printf "storeFile=../../keystore/tripkhata-ci.jks\nstorePassword=tripkhata-ci-2026\nkeyAlias=tripkhata\nkeyPassword=tripkhata-ci-2026\n" > android/key.properties
+            echo "Signing with the shared CI test key."
           fi
       - name: Build APK (cloud sync on when Firebase secrets exist)
         env:

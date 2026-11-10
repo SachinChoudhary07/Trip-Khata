@@ -1,7 +1,27 @@
-# Turning on cloud sync (₹0, about 15 minutes)
+# Cloud sync setup
 
-Until these steps are done, every build is fully offline and the cloud buttons say
-"not set up in this build". Nothing breaks.
+**Status:** Firebase project `flutter-apps-975a6`, Android app `com.trip_khata.trip_khata`.
+The Firebase settings are built into the app (`lib/features/cloud/cloud_sync.dart`) and CI
+builds are signed with the shared test key in `keystore/`, so no GitHub secrets are needed.
+
+Three things must be done once in the Firebase console:
+
+1. **Project settings → Your apps → `com.trip_khata.trip_khata` → Add fingerprint**
+   - SHA-1: `88:53:46:7E:EB:AF:B0:9D:66:19:2E:E6:E7:9E:92:EC:2F:6C:0E:39`
+   - SHA-256: `D2:7E:0D:45:7F:5C:17:FB:D9:EC:86:0C:1A:FB:24:A1:E4:C8:7F:8D:FF:9E:05:8B:D7:9B:C1:5F:79:8E:EA:2E`
+   (Keep your existing debug SHA-1 too, for local `flutter run`.)
+2. **Authentication → Sign-in method → Google** is enabled.
+3. **Firestore Database** exists, and its **Rules** contain the TripKhata block from
+   [`firestore.rules`](../firestore.rules). The project is shared with other apps:
+   add the block, don't replace their rules. TripKhata only uses the
+   `tripkhata_trips` collection.
+
+---
+
+## Using your own Firebase project or a private release key later
+
+The rest of this guide is for moving off the shared test key (do this before a Play Store release)
+or onto a different Firebase project.
 
 ## 1. Make a release signing key (once, on your laptop)
 

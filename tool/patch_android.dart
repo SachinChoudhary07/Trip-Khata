@@ -66,10 +66,14 @@ void _patchGradle() {
   if (!f.existsSync()) return;
   var g = f.readAsStringSync();
   final isKts = f.path.endsWith('.kts');
+  // Must match the Android app registered in Firebase (google-services.json).
+  g = g.replaceFirst(RegExp(r'applicationId\s*=\s*"[^"]*"'), 'applicationId = "com.trip_khata.trip_khata"');
+  g = g.replaceFirst(RegExp(r'applicationId\s+"[^"]*"'), 'applicationId "com.trip_khata.trip_khata"');
   // Firebase Auth / Firestore need Android 6.0+.
   g = g.replaceFirst(RegExp(r'minSdk\s*=\s*flutter\.minSdkVersion'), 'minSdk = 23');
   g = g.replaceFirst(RegExp(r'minSdkVersion\s+flutter\.minSdkVersion'), 'minSdkVersion 23');
   if (isKts && !g.contains('key.properties')) {
+    // (signing block follows)
     // Stable release signing from android/key.properties (written by CI from
     // secrets). Without it the build falls back to the debug key.
     g = 'import java.io.FileInputStream\nimport java.util.Properties\n\n$g';

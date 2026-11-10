@@ -10,14 +10,22 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../db/app_database.dart';
 import '../trips/data/trip_repository.dart';
 
-/// Firebase settings come from --dart-define at build time (GitHub secrets in
-/// CI). With no settings the app stays fully offline and hides cloud features.
+/// Firebase settings for the `com.trip_khata.trip_khata` Android app in the
+/// flutter-apps-975a6 project (from google-services.json; these values are
+/// public identifiers, not secrets). Can be overridden with --dart-define.
 class CloudConfig {
-  static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
-  static const appId = String.fromEnvironment('FIREBASE_APP_ID');
-  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-  static const senderId = String.fromEnvironment('FIREBASE_SENDER_ID');
-  static const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  static const apiKey =
+      String.fromEnvironment('FIREBASE_API_KEY', defaultValue: 'AIzaSyAIWXDrxrfjsvXHdbnGIa3wVWemBgHRiWE');
+  static const appId =
+      String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '1:587001182182:android:1fcfa4c2af921ff42d4827');
+  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'flutter-apps-975a6');
+  static const senderId = String.fromEnvironment('FIREBASE_SENDER_ID', defaultValue: '587001182182');
+  static const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '587001182182-61s04ehq1d0ceo48qe4lko57jd9up027.apps.googleusercontent.com');
+
+  /// The Firebase project is shared with other apps, so TripKhata keeps all
+  /// its data under its own top-level collection.
+  static const tripsCollection = 'tripkhata_trips';
 
   static bool get present => apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
 }
@@ -34,7 +42,7 @@ class SyncException implements Exception {
 ///   (Firestore queues them itself while offline);
 /// - Firestore listeners write remote edits back into the local database.
 ///
-/// Firestore layout: trips/{tripId} with members, expenses, settlements and
+/// Firestore layout: tripkhata_trips/{tripId} with members, expenses, settlements and
 /// places as subcollections. Expenses carry their shares and a `deleted` flag.
 class CloudSync extends ChangeNotifier {
   CloudSync(this._repo);
@@ -53,7 +61,7 @@ class CloudSync extends ChangeNotifier {
   static const _subcollections = {'member': 'members', 'expense': 'expenses', 'settlement': 'settlements', 'place': 'places'};
 
   FirebaseFirestore get _fs => FirebaseFirestore.instance;
-  DocumentReference<Map<String, dynamic>> _tripDoc(String id) => _fs.collection('trips').doc(id);
+  DocumentReference<Map<String, dynamic>> _tripDoc(String id) => _fs.collection(CloudConfig.tripsCollection).doc(id);
 
   Future<void> init() async {
     if (!CloudConfig.present) return;
@@ -138,7 +146,7 @@ class CloudSync extends ChangeNotifier {
   Future<String> joinTrip(String rawCode) async {
     final code = rawCode.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
     final u = user ?? await signInWithGoogle();
-    final q = await _fs.collection('trips').where('joinCode', isEqualTo: code).limit(1).get();
+    final q = await _fs.collection(CloudConfig.tripsCollection).where('joinCode', isEqualTo: code).limit(1).get();
     if (q.docs.isEmpty) throw SyncException('No trip found for code $code.');
     final doc = q.docs.first;
     await doc.reference.update({'memberUids': FieldValue.arrayUnion([u.uid])});
