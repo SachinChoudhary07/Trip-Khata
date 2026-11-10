@@ -7,6 +7,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'db/app_database.dart';
 import 'features/cloud/cloud_sync.dart';
+import 'features/widget/trip_widget.dart';
 import 'features/trips/data/trip_repository.dart';
 
 Future<void> main() async {
@@ -15,6 +16,7 @@ Future<void> main() async {
   final cloud = CloudSync(repo);
   await Reminders.init();
   await cloud.init(); // no-op when this build has no Firebase settings
+  TripWidget.start(repo); // keeps the home screen widget showing the active trip
   // Notification taps are routed from the splash screen once home is up.
   runApp(TripKhataApp(repository: repo, cloud: cloud));
 }

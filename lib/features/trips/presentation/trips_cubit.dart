@@ -26,15 +26,18 @@ class TripSummary extends Equatable {
 }
 
 class TripsState extends Equatable {
-  const TripsState({this.loading = true, this.trips = const []});
+  const TripsState({this.loading = true, this.trips = const [], this.activeId});
   final bool loading;
   final List<TripSummary> trips;
+  final String? activeId;
 
-  TripSummary? get ongoing => trips.where((t) => t.isOngoing).firstOrNull ?? trips.firstOrNull;
-  List<TripSummary> get past => trips.where((t) => t != ongoing).toList();
+  /// The one active trip (quick add, voice and the home widget go here).
+  TripSummary? get active => activeId == null ? null : trips.where((t) => t.trip.id == activeId).firstOrNull;
+
+  List<TripSummary> get past => trips.where((t) => t.trip.id != active?.trip.id).toList();
 
   @override
-  List<Object?> get props => [loading, trips];
+  List<Object?> get props => [loading, trips, activeId];
 }
 
 /// Home screen data: every trip with its total and your balance.
@@ -46,6 +49,11 @@ class TripsCubit extends Cubit<TripsState> {
       _repo.watchAllExpenses().listen((v) => _update(expenses: v)),
       _repo.watchAllShares().listen((v) => _update(shares: v)),
       _repo.watchAllSettlements().listen((v) => _update(settlements: v)),
+      _repo.watchProfile().listen((p) {
+        _activeId = p?.activeTripId;
+        _profileSeen = true;
+        _update();
+      }),
     ];
   }
 
@@ -56,6 +64,8 @@ class TripsCubit extends Cubit<TripsState> {
   List<Expense>? _e;
   List<ExpenseShare>? _s;
   List<Settlement>? _st;
+  String? _activeId;
+  bool _profileSeen = false;
 
   void _update({
     List<Trip>? trips,
@@ -69,11 +79,11 @@ class TripsCubit extends Cubit<TripsState> {
     _e = expenses ?? _e;
     _s = shares ?? _s;
     _st = settlements ?? _st;
-    if (_t == null || _m == null || _e == null || _s == null || _st == null || isClosed) return;
+    if (_t == null || _m == null || _e == null || _s == null || _st == null || !_profileSeen || isClosed) return;
     final list = [
       for (final trip in _t!) _summary(trip),
     ];
-    emit(TripsState(loading: false, trips: list));
+    emit(TripsState(loading: false, trips: list, activeId: _activeId));
   }
 
   TripSummary _summary(Trip trip) {
@@ -97,6 +107,8 @@ class TripsCubit extends Cubit<TripsState> {
   }
 
   Future<String> createSample() => _repo.createSampleTrip();
+
+  Future<void> setActive(String? tripId) => _repo.setActiveTrip(tripId);
 
   @override
   Future<void> close() async {

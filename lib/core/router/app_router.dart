@@ -78,7 +78,10 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: 'voice',
-          pageBuilder: (c, s) => _page(VoicePage(tripId: s.pathParameters['id']!), s),
+          pageBuilder: (c, s) => _page(
+            VoicePage(tripId: s.pathParameters['id']!, fromWidget: s.uri.queryParameters['from'] == 'widget'),
+            s,
+          ),
         ),
         GoRoute(
           path: 'expense/:eid',

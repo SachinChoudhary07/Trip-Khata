@@ -101,6 +101,10 @@ class Profiles extends Table {
   /// Notify when friends add or change expenses in shared trips.
   BoolColumn get notifyActivity => boolean().withDefault(const Constant(true))();
 
+  /// The one trip quick-add, voice and the home screen widget write to.
+  /// Kept per phone (not synced): each friend picks their own.
+  TextColumn get activeTripId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -127,7 +131,7 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -148,6 +152,13 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 5) {
             await m.addColumn(profiles, profiles.notifyActivity);
+          }
+          if (from < 6) {
+            await m.addColumn(profiles, profiles.activeTripId);
+            // Existing users: the newest trip becomes the active one.
+            await customStatement(
+              'UPDATE profiles SET active_trip_id = (SELECT id FROM trips ORDER BY created_at DESC LIMIT 1)',
+            );
           }
         },
         beforeOpen: (details) async {

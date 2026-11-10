@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/categories.dart';
 import '../../core/reminders.dart';
+import '../widget/trip_widget.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
@@ -30,7 +31,19 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 2600), _go);
+    _boot();
+  }
+
+  String? _widgetAction;
+
+  /// Opened from the home screen widget: skip the intro and go straight in.
+  Future<void> _boot() async {
+    _widgetAction = await TripWidget.launchAction();
+    if (_widgetAction != null) {
+      _go();
+    } else {
+      Future.delayed(const Duration(milliseconds: 2600), _go);
+    }
   }
 
   bool _left = false;
@@ -38,10 +51,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   Future<void> _go() async {
     if (!mounted || _left) return;
     _left = true;
-    final profile = await context.read<TripRepository>().getProfile();
+    final repo = context.read<TripRepository>();
+    final profile = await repo.getProfile();
     if (!mounted) return;
     context.go(profile == null ? '/onboarding' : '/home');
     if (profile == null) return;
+    TripWidget.listenClicks(repo);
+    final w = _widgetAction;
+    if (w != null) {
+      _widgetAction = null;
+      await TripWidget.open(w, repo);
+      return;
+    }
     // From here on, tapping a trip notification opens that trip. A tap that
     // launched the app was held back until home was up.
     Reminders.onOpenTrip = (id) => appRouter.push('/trip/$id');

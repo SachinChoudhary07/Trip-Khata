@@ -152,6 +152,21 @@ void main() {
     expect(p.reminders, isTrue);
   });
 
+  test('one active trip at a time: newest trip takes over, deleting it clears it', () async {
+    await repo.saveProfile(name: 'Sachin', upiId: '');
+    final goa = await repo.createTrip(name: 'Goa', myName: 'Sachin', otherNames: ['Rahul']);
+    expect((await repo.getActiveTrip())!.id, goa);
+    final manali = await repo.createTrip(name: 'Manali', myName: 'Sachin', otherNames: ['Aman']);
+    expect((await repo.getActiveTrip())!.id, manali);
+    await repo.setActiveTrip(goa);
+    expect((await repo.getActiveTrip())!.name, 'Goa');
+    await repo.deleteTrip(manali); // not active: Goa stays
+    expect((await repo.getActiveTrip())!.id, goa);
+    await repo.deleteTrip(goa);
+    expect(await repo.getActiveTrip(), isNull);
+    expect((await repo.getProfile())!.activeTripId, isNull);
+  });
+
   test('CSV export has a header and one row per expense', () async {
     final id = await repo.createTrip(name: 'Goa "2026"', myName: 'A', otherNames: ['B']);
     final m = await ids(id);

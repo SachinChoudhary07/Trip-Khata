@@ -172,6 +172,7 @@ class CloudSync extends ChangeNotifier {
       }
     }
     _listenTrip(doc.id);
+    await _repo.setActiveTrip(doc.id); // the trip you just joined is the one you'll add to
     return doc.id;
   }
 

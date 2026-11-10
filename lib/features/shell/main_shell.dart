@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../profile/settings_page.dart';
 import '../trips/data/trip_repository.dart';
+import '../trips/presentation/active_trip_sheet.dart';
 import '../trips/presentation/home_page.dart';
 import '../trips/presentation/trips_cubit.dart';
 
@@ -33,7 +34,12 @@ class _ShellState extends State<_Shell> {
 
   Future<void> _onAdd() async {
     final state = context.read<TripsCubit>().state;
-    final trip = state.ongoing?.trip;
+    var trip = state.active?.trip;
+    if (trip == null && state.trips.isNotEmpty) {
+      final id = await pickActiveTrip(context);
+      if (!mounted || id == null) return;
+      trip = state.trips.firstWhere((t) => t.trip.id == id).trip;
+    }
     if (trip == null) {
       context.push('/trip/new');
       return;

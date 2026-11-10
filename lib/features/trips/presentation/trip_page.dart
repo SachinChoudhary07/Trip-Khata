@@ -197,7 +197,9 @@ class _TripView extends StatelessWidget {
     final trip = s.trip!;
     final cloud = context.read<CloudSync>();
     final shared = trip.joinCode != null;
+    final repo = context.read<TripRepository>();
     final owner = shared ? await cloud.isOwner(trip.id) : null;
+    final isActive = (await repo.getProfile())?.activeTripId == trip.id;
     if (!context.mounted) return;
     final action = await showModalBottomSheet<String>(
       context: context,
@@ -205,6 +207,19 @@ class _TripView extends StatelessWidget {
       backgroundColor: Colors.white,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          isActive
+              ? ListTile(
+                  leading: const Icon(Icons.flag_outlined),
+                  title: const Text('End trip'),
+                  subtitle: const Text('No trip will be active. Expenses and balances stay.'),
+                  onTap: () => Navigator.pop(c, 'end'),
+                )
+              : ListTile(
+                  leading: const Icon(Icons.play_circle_outline, color: AppColors.primary),
+                  title: const Text('Make this the active trip'),
+                  subtitle: const Text('Quick add, voice and the home widget will add here'),
+                  onTap: () => Navigator.pop(c, 'activate'),
+                ),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
             title: const Text('Edit trip'),
@@ -239,6 +254,15 @@ class _TripView extends StatelessWidget {
     if (!context.mounted || action == null) return;
     if (action == 'edit') {
       context.push('/trip/${trip.id}/edit');
+      return;
+    }
+    if (action == 'activate' || action == 'end') {
+      await repo.setActiveTrip(action == 'activate' ? trip.id : null);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(action == 'activate' ? '${trip.name} is now your active trip' : 'Trip ended. No trip is active.'),
+        ));
+      }
       return;
     }
     final unsettled = s.transfers.isNotEmpty;

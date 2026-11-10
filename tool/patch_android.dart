@@ -53,6 +53,7 @@ void main() {
     xml = xml.replaceFirst('</application>', '$receivers\n    </application>');
   }
   xml = xml.replaceFirst(RegExp(r'android:label="[^"]*"'), 'android:label="TripKhata"');
+  xml = _installWidget(xml);
   f.writeAsStringSync(xml);
   _patchGradle();
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');
@@ -108,4 +109,45 @@ android {
       : "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n";
   f.writeAsStringSync(g);
   stdout.writeln('Enabled core library desugaring in ${f.path}.');
+}
+
+/// Home screen widget: copies the provider and its resources from
+/// tool/android_widget/ into android/, registers the receiver and lets
+/// MainActivity receive widget taps. Safe to run more than once.
+String _installWidget(String xml) {
+  final main = Directory('android/app/src/main');
+  final activity = main
+      .listSync(recursive: true)
+      .whereType<File>()
+      .firstWhere((f) => f.path.endsWith('MainActivity.kt') || f.path.endsWith('MainActivity.java'));
+  final pkg = RegExp(r'^package\s+([\w.]+)', multiLine: true).firstMatch(activity.readAsStringSync())!.group(1)!;
+
+  final src = Directory('tool/android_widget');
+  final kt = File('${src.path}/TripWidgetProvider.kt').readAsStringSync().replaceAll('__PACKAGE__', pkg);
+  File('${activity.parent.path}/TripWidgetProvider.kt').writeAsStringSync(kt);
+  for (final f in Directory('${src.path}/res').listSync(recursive: true).whereType<File>()) {
+    final rel = f.path.substring('${src.path}/res/'.length);
+    final out = File('${main.path}/res/$rel')..createSync(recursive: true);
+    f.copySync(out.path);
+  }
+
+  if (!xml.contains('TripWidgetProvider')) {
+    xml = xml.replaceFirst('</application>', '''
+        <receiver android:name="$pkg.TripWidgetProvider" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/trip_widget_info" />
+        </receiver>
+    </application>''');
+  }
+  if (!xml.contains('es.antonborri.home_widget.action.LAUNCH')) {
+    // First </activity> is MainActivity in the generated manifest.
+    xml = xml.replaceFirst('</activity>', '''    <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+            </intent-filter>
+        </activity>''');
+  }
+  stdout.writeln('Home screen widget installed ($pkg.TripWidgetProvider).');
+  return xml;
 }

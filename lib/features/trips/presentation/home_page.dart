@@ -9,6 +9,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/trip_cover.dart';
 import '../../../db/app_database.dart';
 import '../data/trip_repository.dart';
+import 'active_trip_sheet.dart';
 import 'trips_cubit.dart';
 
 String dateRange(DateTime? s, DateTime? e) {
@@ -39,7 +40,7 @@ class HomeBody extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                   child: Row(children: [
-                    Text(state.ongoing!.isOngoing ? 'Ongoing trip' : 'Latest trip',
+                    Text(state.active != null ? 'Active trip' : 'No active trip',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
                     const Spacer(),
                     const Icon(Icons.offline_pin_outlined, size: 15, color: AppColors.primary),
@@ -48,7 +49,11 @@ class HomeBody extends StatelessWidget {
                   ]),
                 ),
               ),
-              SliverToBoxAdapter(child: FadeSlideIn(child: TripCard(summary: state.ongoing!))),
+              SliverToBoxAdapter(
+                child: FadeSlideIn(
+                  child: state.active != null ? TripCard(summary: state.active!) : const _NoActiveTrip(),
+                ),
+              ),
               if (state.past.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: Padding(
@@ -379,6 +384,42 @@ class _TripRow extends StatelessWidget {
             ]),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown when trips exist but none is active (e.g. the active one was deleted).
+class _NoActiveTrip extends StatelessWidget {
+  const _NoActiveTrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(children: [
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Which trip are you on?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              SizedBox(height: 4),
+              Text('Pick one to add expenses to it from anywhere, even the home screen widget.',
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.35)),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+            onPressed: () => pickActiveTrip(context),
+            child: const Text('Choose'),
+          ),
+        ]),
       ),
     );
   }

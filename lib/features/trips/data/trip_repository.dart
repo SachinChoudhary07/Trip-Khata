@@ -57,6 +57,16 @@ class TripRepository {
   Future<Profile?> getProfile() =>
       (_db.select(_db.profiles)..where((p) => p.id.equals(1))).getSingleOrNull();
 
+  /// Only one trip is active at a time; null means none.
+  Future<void> setActiveTrip(String? tripId) =>
+      (_db.update(_db.profiles)..where((p) => p.id.equals(1))).write(ProfilesCompanion(activeTripId: Value(tripId)));
+
+  /// The active trip, if it still exists on this phone.
+  Future<Trip?> getActiveTrip() async {
+    final id = (await getProfile())?.activeTripId;
+    return id == null ? null : getTrip(id);
+  }
+
   Stream<List<Place>> watchPlaces(String tripId) => (_db.select(_db.places)
         ..where((p) => p.tripId.equals(tripId))
         ..orderBy([(p) => OrderingTerm.asc(p.visitedAt)]))
@@ -177,6 +187,7 @@ class TripRepository {
             ));
       }
     });
+    await setActiveTrip(tripId); // a new trip becomes the active one
     return tripId;
   }
 
@@ -325,6 +336,7 @@ class TripRepository {
 
   /// Deletes a trip and everything in it (also its pending sync changes).
   Future<void> deleteTrip(String tripId) async {
+    if ((await getProfile())?.activeTripId == tripId) await setActiveTrip(null);
     final bills = await (_db.select(_db.expenses)..where((e) => e.tripId.equals(tripId) & e.billPath.isNotNull())).get();
     for (final e in bills) {
       try {

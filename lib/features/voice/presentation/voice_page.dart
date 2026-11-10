@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -19,8 +20,12 @@ import '../domain/hinglish_parser.dart';
 
 /// "Speak to add": listens on the phone, parses Hinglish, lets you confirm.
 class VoicePage extends StatelessWidget {
-  const VoicePage({super.key, required this.tripId});
+  const VoicePage({super.key, required this.tripId, this.fromWidget = false});
   final String tripId;
+
+  /// Opened from the home screen widget: when done, go back to the home
+  /// screen instead of into the app.
+  final bool fromWidget;
 
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -29,7 +34,7 @@ class VoicePage extends StatelessWidget {
           buildWhen: (a, b) => a.loading != b.loading,
           builder: (context, s) => s.loading
               ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-              : _VoiceView(tripId: tripId, members: s.members),
+              : _VoiceView(tripId: tripId, members: s.members, fromWidget: fromWidget),
         ),
       );
 }
@@ -37,9 +42,10 @@ class VoicePage extends StatelessWidget {
 enum _Phase { starting, listening, done, unavailable }
 
 class _VoiceView extends StatefulWidget {
-  const _VoiceView({required this.tripId, required this.members});
+  const _VoiceView({required this.tripId, required this.members, this.fromWidget = false});
   final String tripId;
   final List<Member> members;
+  final bool fromWidget;
 
   @override
   State<_VoiceView> createState() => _VoiceViewState();
@@ -203,7 +209,23 @@ class _VoiceViewState extends State<_VoiceView> with TickerProviderStateMixin {
           shares: [for (final e in shares.entries) NewShare(e.key, e.value)],
           byVoice: true,
         );
-    if (mounted) context.pop();
+    if (!mounted) return;
+    if (widget.fromWidget) {
+      _toast('Saved to the trip');
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      return _close();
+    }
+    context.pop();
+  }
+
+  /// Back to wherever the user came from: the app, or the home screen when
+  /// this was opened from the widget.
+  void _close() {
+    if (widget.fromWidget) {
+      SystemNavigator.pop();
+    } else {
+      context.pop();
+    }
   }
 
   void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -214,7 +236,7 @@ class _VoiceViewState extends State<_VoiceView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: const Color(0xFF2B3136),
       body: Column(children: [
-        Expanded(child: GestureDetector(onTap: () => context.pop(), behavior: HitTestBehavior.opaque)),
+        Expanded(child: GestureDetector(onTap: _close, behavior: HitTestBehavior.opaque)),
         TweenAnimationBuilder<double>(
           tween: Tween(begin: 1, end: 0),
           duration: const Duration(milliseconds: 420),
