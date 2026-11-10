@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TripKhata – Privacy policy</title>
+<style>
+  :root { --teal: #0E5E6F; --text: #15181C; --muted: #5B636D; --line: #E4E7EB; --bg: #F5F6F7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--teal); color: #fff; padding: 40px 20px 32px; }
+  header .wrap { max-width: 760px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -0.01em; }
+  header p { margin: 0; opacity: .8; }
+  main { max-width: 760px; margin: 0 auto; padding: 8px 20px 60px; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 4px 22px 14px; margin-top: 16px; }
+  h2 { font-size: 19px; margin: 18px 0 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-top: 1px solid var(--line); }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; border-top: 0; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  .muted { color: var(--muted); }
+  a { color: var(--teal); }
+  ol, ul { padding-left: 22px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>TripKhata privacy policy</h1>
+    <p>Effective 10 November 2026</p>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>The short version</h2>
+    <ul>
+      <li>Your trips are saved on your phone. Nothing leaves it unless you sign in and <strong>share a trip</strong>.</li>
+      <li>A shared trip is stored in Google Firebase so the people in it can see and edit it. Only people who joined that trip can read it.</li>
+      <li>No ads, no tracking for marketing, and we never sell or rent your data.</li>
+      <li>You can delete your account and data from inside the app at any time.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What the app uses and why</h2>
+    <table>
+      <tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
+      <tr><td>Name and UPI ID</td><td>To show who paid and to let friends pay you back by UPI</td><td>Your phone. In a shared trip, also visible to the people in that trip.</td></tr>
+      <tr><td>Trips, expenses, splits, settlements</td><td>The main job of the app</td><td>Your phone. Shared trips are also stored in Firebase Firestore.</td></tr>
+      <tr><td>Google account (name, email, a user ID)</td><td>Only if you sign in, to share and join trips</td><td>Firebase Authentication</td></tr>
+      <tr><td>Microphone</td><td>Only while you use "Speak to add"</td><td>Your phone's speech recognition service turns speech into text. TripKhata does not record or store audio. Depending on your phone, the speech service (for example Google's) may process the audio under its own policy.</td></tr>
+      <tr><td>Location</td><td>Only when you tap "Check in here", to pin a hotel, dhaba or stop</td><td>Your phone. In a shared trip, the stop is visible to the people in that trip. No background location.</td></tr>
+      <tr><td>Contacts</td><td>Only when you pick friends to add to a trip</td><td>Only the names you pick are saved, as trip members. The rest of your contacts are never read into the app or uploaded.</td></tr>
+      <tr><td>Camera and photos</td><td>To attach a photo of a bill</td><td>Your phone. In a shared trip, the photo is uploaded to Firebase Storage so the people in that trip can see it.</td></tr>
+      <tr><td>Push token</td><td>To notify you when a friend adds an expense in a shared trip</td><td>Firebase Firestore and Firebase Cloud Messaging</td></tr>
+      <tr><td>Crash reports</td><td>To find and fix crashes</td><td>Firebase Crashlytics: device model, Android version, app version and the error. No trip data.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Who can see your data</h2>
+    <p>Trips that are not shared stay only on your phone. A shared trip can be read and edited by the people who joined it with its code. The data is processed by Google Firebase on our behalf (<a href="https://firebase.google.com/support/privacy">Firebase privacy information</a>). We don't share it with anyone else, unless required by law.</p>
+  </section>
+
+  <section>
+    <h2>How long it is kept</h2>
+    <p>Data on your phone stays until you delete it or uninstall the app. A shared trip stays in Firebase until its creator deletes it for everyone, or until nobody is left in it. Push tokens are removed when you sign out or delete your account.</p>
+  </section>
+
+  <section id="delete">
+    <h2>Delete your account and data</h2>
+    <ol>
+      <li>Open TripKhata → <strong>Profile</strong> → <strong>Settings</strong>.</li>
+      <li>Under your Google account, tap <strong>Delete account</strong> and confirm with Google.</li>
+      <li>Tick "Also erase all trips and my profile from this phone" to remove everything locally too.</li>
+    </ol>
+    <p>This removes you from every shared trip, deletes your push tokens and deletes your sign-in. Trips that nobody else is in are deleted completely, including bill photos. In trips you shared with friends, the expenses stay for them (they are the group's record), but they are no longer linked to your account.</p>
+    <p>To delete a single shared trip for everyone, open it → ⋮ → <strong>Delete for everyone</strong> (trip creator only). To remove everything from the phone, uninstall the app.</p>
+    <p class="muted">Can't open the app? Ask for deletion through the contact link below and we'll do it within 30 days.</p>
+  </section>
+
+  <section>
+    <h2>Children</h2>
+    <p>TripKhata is not meant for children under 13 and we don't knowingly collect their data.</p>
+  </section>
+
+  <section>
+    <h2>Changes and contact</h2>
+    <p>If this policy changes, the new version will be posted on this page with a new date. Questions or deletion requests: <a href="https://github.com/SachinChoudhary07/Trip-Khata/issues">open an issue on GitHub</a>.</p>
+  </section>
+</main>
+</body>
+</html>

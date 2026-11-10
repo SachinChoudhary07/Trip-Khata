@@ -90,8 +90,9 @@ class TripRepository {
             reminders: reminders == null ? const Value.absent() : Value(reminders),
           ));
 
-  Future<void> updateSettings({String? voiceLang, bool? reminders, bool? notifyActivity}) =>
+  Future<void> updateSettings({String? voiceLang, bool? reminders, bool? notifyActivity, bool? notifyBudget}) =>
       (_db.update(_db.profiles)..where((p) => p.id.equals(1))).write(ProfilesCompanion(
+        notifyBudget: notifyBudget == null ? const Value.absent() : Value(notifyBudget),
         voiceLang: voiceLang == null ? const Value.absent() : Value(voiceLang),
         reminders: reminders == null ? const Value.absent() : Value(reminders),
         notifyActivity: notifyActivity == null ? const Value.absent() : Value(notifyActivity),
@@ -272,9 +273,46 @@ class TripRepository {
   Future<List<ExpenseShare>> getShares(String expenseId) =>
       (_db.select(_db.expenseShares)..where((s) => s.expenseId.equals(expenseId))).get();
 
-  Future<void> setBillPath(String expenseId, String? path) =>
-      (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
-          .write(ExpensesCompanion(billPath: Value(path)));
+  /// A new (or removed) bill photo on this phone. For a shared trip the sync
+  /// service uploads it and then shares the expense again.
+  Future<void> setBillPath(String expenseId, String? path) async {
+    await (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
+        .write(ExpensesCompanion(billPath: Value(path), billRemote: const Value(null), updatedAt: Value(DateTime.now())));
+    final e = await getExpense(expenseId);
+    if (e != null && path == null) await _queue(e.tripId, 'expense', expenseId);
+  }
+
+  /// Bill photos in shared trips that are on this phone but not uploaded yet.
+  Future<List<Expense>> pendingBillUploads() async {
+    final shared = (await watchSharedTrips().first).map((t) => t.id).toSet();
+    if (shared.isEmpty) return const [];
+    final rows = await (_db.select(_db.expenses)..where((e) => e.billPath.isNotNull() & e.billRemote.isNull())).get();
+    return rows.where((e) => shared.contains(e.tripId)).toList();
+  }
+
+  /// Upload finished: remember where it went and share the expense again.
+  Future<void> setBillRemote(String expenseId, String remote) async {
+    await (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
+        .write(ExpensesCompanion(billRemote: Value(remote), updatedAt: Value(DateTime.now())));
+    final e = await getExpense(expenseId);
+    if (e != null) await _queue(e.tripId, 'expense', expenseId);
+  }
+
+  /// A friend's bill photo was downloaded to this phone. Not synced.
+  Future<void> setLocalBill(String expenseId, String path) =>
+      (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId))).write(ExpensesCompanion(billPath: Value(path)));
+
+  /// Records the highest budget alert shown for a trip (0, 80 or 100). Local only.
+  Future<void> setBudgetAlerted(String tripId, int level) =>
+      (_db.update(_db.trips)..where((t) => t.id.equals(tripId))).write(TripsCompanion(budgetAlerted: Value(level)));
+
+  /// Everything on this phone: trips, bills, profile. Used after deleting the account.
+  Future<void> eraseAll() async {
+    for (final t in await watchTrips().first) {
+      await deleteTrip(t.id);
+    }
+    await _db.delete(_db.profiles).go();
+  }
 
   /// Adds people to an existing trip. Existing expenses are not changed.
   Future<void> addMembers(String tripId, List<String> names) async {
@@ -488,6 +526,7 @@ class TripRepository {
           'spentAt': e.spentAt.millisecondsSinceEpoch,
           'updatedAt': e.updatedAt.millisecondsSinceEpoch,
           'shares': {for (final s in shares) s.memberId: s.share},
+          'bill': e.billRemote,
           'deleted': false,
         };
       case 'settlement':
@@ -564,6 +603,10 @@ class TripRepository {
         }
         if (local != null && local.updatedAt.isAfter(updated)) return;
         final shares = (d['shares'] as Map?)?.map((k, v) => MapEntry(k as String, _int(v))) ?? const {};
+        final bill = d['bill'] as String?;
+        // A different (or removed) photo than the one on this phone: drop the
+        // local copy, it's fetched again when someone opens the expense.
+        final staleBill = local != null && local.billRemote != bill && !(local.billRemote == null && bill == null);
         await _db.transaction(() async {
           await _db.into(_db.expenses).insertOnConflictUpdate(ExpensesCompanion(
                 id: Value(id),
@@ -578,6 +621,8 @@ class TripRepository {
                 placeId: Value(d['placeId'] as String?),
                 spentAt: Value(_ms(d['spentAt']) ?? updated),
                 updatedAt: Value(updated),
+                billRemote: Value(bill),
+                billPath: staleBill ? const Value(null) : const Value.absent(),
               ));
           await (_db.delete(_db.expenseShares)..where((s) => s.expenseId.equals(id))).go();
           for (final e in shares.entries) {

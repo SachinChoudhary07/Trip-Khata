@@ -234,12 +234,21 @@ class AccountCard extends StatelessWidget {
         },
       );
     } else {
-      body = ListTile(
-        leading: const Icon(Icons.cloud_done_outlined, color: AppColors.primary),
-        title: Text(u.email ?? u.displayName ?? 'Signed in'),
-        subtitle: const Text('Shared trips sync automatically'),
-        trailing: TextButton(onPressed: cloud.signOut, child: const Text('Sign out')),
-      );
+      body = Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: const Icon(Icons.cloud_done_outlined, color: AppColors.primary),
+          title: Text(u.email ?? u.displayName ?? 'Signed in'),
+          subtitle: const Text('Shared trips sync automatically'),
+          trailing: TextButton(onPressed: cloud.signOut, child: const Text('Sign out')),
+        ),
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.person_remove_outlined, color: AppColors.owe),
+          title: const Text('Delete account', style: TextStyle(color: AppColors.owe)),
+          subtitle: const Text('Leave all shared trips and delete your sign-in'),
+          onTap: () => _deleteAccount(context, cloud),
+        ),
+      ]);
     }
     return Material(
       color: Colors.white,
@@ -250,5 +259,52 @@ class AccountCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: body,
     );
+  }
+}
+
+Future<void> _deleteAccount(BuildContext context, CloudSync cloud) async {
+  var eraseLocal = false;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (d, set) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text(
+            'You will leave every shared trip and they will be removed from this phone. '
+            'Friends keep those trips and the expenses in them. Your push tokens and Google sign-in '
+            'are deleted from TripKhata. This can’t be undone.',
+            style: TextStyle(height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: eraseLocal,
+            onChanged: (v) => set(() => eraseLocal = v ?? false),
+            title: const Text('Also erase all trips and my profile from this phone'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.owe, minimumSize: const Size(0, 44)),
+            onPressed: () => Navigator.pop(d, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final router = GoRouter.of(context);
+  try {
+    await cloud.deleteAccount(eraseLocal: eraseLocal);
+    if (eraseLocal) {
+      router.go('/onboarding');
+    } else if (context.mounted) {
+      _toast(context, 'Account deleted');
+    }
+  } catch (e) {
+    if (context.mounted) _toast(context, _friendly(e));
   }
 }

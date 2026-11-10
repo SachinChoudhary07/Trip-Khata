@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/money.dart';
 import '../../../core/widgets/common.dart';
 import '../../../db/app_database.dart';
+import '../../cloud/cloud_sync.dart';
 import '../../trips/data/trip_repository.dart';
 import '../../trips/presentation/trip_detail_cubit.dart';
 
@@ -160,7 +162,7 @@ class ExpenseDetailPage extends StatelessWidget {
                 ]),
               ),
               const SectionLabel('Bill', padding: EdgeInsets.fromLTRB(4, 22, 4, 8)),
-              _BillCard(expenseId: e.id, path: e.billPath),
+              _BillCard(expenseId: e.id, path: e.billPath, remote: e.billRemote),
               if (notIn.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
@@ -178,9 +180,12 @@ class ExpenseDetailPage extends StatelessWidget {
 
 /// Photo of the bill, stored on the phone in the app's documents folder.
 class _BillCard extends StatelessWidget {
-  const _BillCard({required this.expenseId, required this.path});
+  const _BillCard({required this.expenseId, required this.path, this.remote});
   final String expenseId;
   final String? path;
+
+  /// Set when a friend added the photo in a shared trip; fetched on demand.
+  final String? remote;
 
   Future<void> _pick(BuildContext context, ImageSource source) async {
     final x = await ImagePicker().pickImage(source: source, maxWidth: 1600, imageQuality: 80);
@@ -194,6 +199,7 @@ class _BillCard extends StatelessWidget {
     final old = path;
     await repo.setBillPath(expenseId, dest);
     if (old != null && File(old).existsSync()) File(old).deleteSync();
+    if (context.mounted) unawaited(context.read<CloudSync>().uploadPendingBills());
   }
 
   void _chooseSource(BuildContext context) => showModalBottomSheet<void>(
@@ -236,6 +242,9 @@ class _BillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final file = path == null ? null : File(path!);
+    if ((file == null || !file.existsSync()) && remote != null) {
+      return _RemoteBill(key: ValueKey(remote), expenseId: expenseId, remote: remote!);
+    }
     if (file == null || !file.existsSync()) {
       return InkWell(
         onTap: () => _chooseSource(context),
@@ -278,6 +287,57 @@ class _BillCard extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// A friend's bill photo: downloaded to this phone the first time it's opened.
+class _RemoteBill extends StatefulWidget {
+  const _RemoteBill({super.key, required this.expenseId, required this.remote});
+  final String expenseId;
+  final String remote;
+
+  @override
+  State<_RemoteBill> createState() => _RemoteBillState();
+}
+
+class _RemoteBillState extends State<_RemoteBill> {
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _failed = false);
+    final path = await context.read<CloudSync>().fetchBill(widget.expenseId, widget.remote);
+    // On success the expense row updates and this widget is replaced.
+    if (path == null && mounted) setState(() => _failed = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _failed ? _load : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 88,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 1.5),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (_failed)
+            const Icon(Icons.cloud_off_outlined, color: AppColors.textMuted)
+          else
+            const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 10),
+          Text(_failed ? 'Couldn’t load the bill. Tap to retry' : 'Loading the bill photo…',
+              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+        ]),
+      ),
     );
   }
 }

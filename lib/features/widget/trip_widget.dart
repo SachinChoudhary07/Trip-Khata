@@ -19,15 +19,13 @@ class TripWidget {
 
   static const _provider = 'com.tripkhata.tripkhata.TripWidgetProvider';
 
-  static TripsCubit? _cubit;
   static StreamSubscription<TripsState>? _sub;
   static String _last = '';
 
   /// Keeps the widget in step with the active trip. Call once at start-up.
-  static void start(TripRepository repo) {
-    if (defaultTargetPlatform != TargetPlatform.android || _cubit != null) return;
-    _cubit = TripsCubit(repo);
-    _sub = _cubit!.stream.listen(_push);
+  static void start(TripsCubit trips) {
+    if (defaultTargetPlatform != TargetPlatform.android || _sub != null) return;
+    _sub = trips.stream.listen(_push);
   }
 
   static Future<void> _push(TripsState s) async {
@@ -110,7 +108,6 @@ class TripWidget {
     await _clickSub?.cancel();
     _clickSub = null;
     await _sub?.cancel();
-    await _cubit?.close();
-    _cubit = null;
+    _sub = null;
   }
 }

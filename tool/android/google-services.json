@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "587001182182",
+    "project_id": "flutter-apps-975a6",
+    "storage_bucket": "flutter-apps-975a6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:587001182182:android:1fcfa4c2af921ff42d4827",
+        "android_client_info": {
+          "package_name": "com.trip_khata.trip_khata"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "587001182182-9pr9bn910tcpbhrmhpgtdq8u0ii31qkl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.trip_khata.trip_khata",
+            "certificate_hash": "1fc6a5067cb6780670be2f06b6a888419ad8b28f"
+          }
+        },
+        {
+          "client_id": "587001182182-61s04ehq1d0ceo48qe4lko57jd9up027.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIWXDrxrfjsvXHdbnGIa3wVWemBgHRiWE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "587001182182-61s04ehq1d0ceo48qe4lko57jd9up027.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "587001182182-2e0mimfe5aludvspvjr3n8k258qt25eh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.smarttaxi.driver"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

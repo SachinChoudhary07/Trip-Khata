@@ -43,6 +43,23 @@ Three things must be done once in the Firebase console:
    Without the function the app still works: friends get a notification while their app
    is open, and on the next open for anything that came in while it was closed.
 
+5. **v0.5.0 (security, bill photos, account deletion, Crashlytics)**
+   - **Firestore → Rules**: replace the TripKhata block with the new one from
+     [`firestore.rules`](../firestore.rules) and Publish. Trips are now readable only by
+     their members; join codes live in `tripkhata_codes`. Old shared trips get their code
+     doc the next time anyone in them opens the app.
+   - **Storage → Get started** (if Storage isn't on yet), then **Rules**: add the block from
+     [`storage.rules`](../storage.rules) and Publish. Allow the prompt that lets Storage
+     rules read Firestore.
+   - **Redeploy the functions** (same command as above). New: cleanup on trip delete and
+     account delete, and old bill photos are removed when replaced.
+   - **Crashlytics**: open Firebase console → Crashlytics once. Reports show up after the
+     first crash (or first launch) of a release build.
+   - **GitHub Pages** (privacy policy): repo → Settings → Pages → Source "Deploy from a
+     branch" → Branch `main`, folder `/docs` → Save. The policy is then at
+     https://sachinchoudhary07.github.io/Trip-Khata/privacy/ (use this URL in Play Console,
+     and `…/privacy/#delete` as the account deletion URL).
+
 ---
 
 ## Using your own Firebase project or a private release key later

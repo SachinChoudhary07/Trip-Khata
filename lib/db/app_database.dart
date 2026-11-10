@@ -17,6 +17,9 @@ class Trips extends Table {
 
   /// Set when the trip is shared to the cloud; friends join with this code.
   TextColumn get joinCode => text().nullable()();
+
+  /// Highest budget alert already shown on this phone: 0, 80 or 100 (%).
+  IntColumn get budgetAlerted => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -60,6 +63,9 @@ class Expenses extends Table {
   TextColumn get note => text().nullable()();
   TextColumn get placeId => text().nullable()();
   TextColumn get billPath => text().nullable()();
+
+  /// Firebase Storage path of the bill photo, for shared trips.
+  TextColumn get billRemote => text().nullable()();
   DateTimeColumn get spentAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -105,6 +111,9 @@ class Profiles extends Table {
   /// Kept per phone (not synced): each friend picks their own.
   TextColumn get activeTripId => text().nullable()();
 
+  /// Notify at 80% and 100% of a trip's budget.
+  BoolColumn get notifyBudget => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -131,7 +140,7 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -159,6 +168,19 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
               'UPDATE profiles SET active_trip_id = (SELECT id FROM trips ORDER BY created_at DESC LIMIT 1)',
             );
+          }
+          if (from < 7) {
+            await m.addColumn(expenses, expenses.billRemote);
+            await m.addColumn(trips, trips.budgetAlerted);
+            await m.addColumn(profiles, profiles.notifyBudget);
+            // Don't alert about budgets that were already crossed before this update.
+            await customStatement('''
+              UPDATE trips SET budget_alerted = CASE
+                WHEN budget IS NULL OR budget <= 0 THEN 0
+                WHEN (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE trip_id = trips.id) >= budget THEN 100
+                WHEN (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE trip_id = trips.id) * 10 >= budget * 8 THEN 80
+                ELSE 0 END
+            ''');
           }
         },
         beforeOpen: (details) async {

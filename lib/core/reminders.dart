@@ -95,6 +95,28 @@ class Reminders {
     );
   }
 
+  /// Budget alerts: their own channel, one notification per trip.
+  static Future<void> showBudget({required String tripId, required String title, required String body}) async {
+    await init();
+    if (!_ready) return;
+    await _plugin.show(
+      1,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'trip_budget',
+          'Budget alerts',
+          channelDescription: 'When a trip reaches 80% and 100% of its budget',
+          importance: Importance.high,
+          priority: Priority.high,
+          tag: 'budget-$tripId',
+        ),
+      ),
+      payload: tripId,
+    );
+  }
+
   static Future<void> setEnabled(bool on) async {
     await init();
     if (!_ready) return;

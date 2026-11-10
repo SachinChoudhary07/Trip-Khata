@@ -56,6 +56,7 @@ void main() {
   xml = _installWidget(xml);
   f.writeAsStringSync(xml);
   _patchGradle();
+  _patchFirebaseGradle();
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');
 }
 
@@ -150,4 +151,48 @@ String _installWidget(String xml) {
   }
   stdout.writeln('Home screen widget installed ($pkg.TripWidgetProvider).');
   return xml;
+}
+
+/// google-services.json (TripKhata's app only) plus the Google Services and
+/// Crashlytics Gradle plugins. Crashlytics needs both at build time.
+void _patchFirebaseGradle() {
+  File('tool/android/google-services.json').copySync('android/app/google-services.json');
+
+  final settingsKts = File('android/settings.gradle.kts');
+  final settingsGroovy = File('android/settings.gradle');
+  final settings = settingsKts.existsSync() ? settingsKts : settingsGroovy;
+  var st = settings.readAsStringSync();
+  if (!st.contains('com.google.gms.google-services')) {
+    final kts = settings.path.endsWith('.kts');
+    final lines = kts
+        ? '    id("com.google.gms.google-services") version "4.4.2" apply false\n'
+            '    id("com.google.firebase.crashlytics") version "3.0.2" apply false\n'
+        : '    id "com.google.gms.google-services" version "4.4.2" apply false\n'
+            '    id "com.google.firebase.crashlytics" version "3.0.2" apply false\n';
+    st = st.replaceFirstMapped(
+      RegExp(r'(id[ (]"dev\.flutter\.flutter-plugin-loader"\)?[^\n]*\n)'),
+      (m) => '${m.group(1)}$lines',
+    );
+    settings.writeAsStringSync(st);
+  }
+
+  final appKts = File('android/app/build.gradle.kts');
+  final app = appKts.existsSync() ? appKts : File('android/app/build.gradle');
+  var g = app.readAsStringSync();
+  if (!g.contains('com.google.gms.google-services')) {
+    final kts = app.path.endsWith('.kts');
+    final lines = kts
+        ? '    id("com.google.gms.google-services")\n    id("com.google.firebase.crashlytics")\n'
+        : '    id "com.google.gms.google-services"\n    id "com.google.firebase.crashlytics"\n';
+    g = g.replaceFirstMapped(
+      RegExp(r'(\n)(\s*id[ (]"dev\.flutter\.flutter-gradle-plugin")'),
+      (m) => '${m.group(1)}$lines${m.group(2)}',
+    );
+    app.writeAsStringSync(g);
+  }
+  if (!st.contains('com.google.gms.google-services') || !g.contains('com.google.firebase.crashlytics')) {
+    stderr.writeln('Could not add the Firebase Gradle plugins. Check settings.gradle and app/build.gradle.');
+    exit(1);
+  }
+  stdout.writeln('Added google-services.json and the Google Services + Crashlytics Gradle plugins.');
 }

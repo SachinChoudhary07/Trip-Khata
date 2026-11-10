@@ -167,6 +167,59 @@ void main() {
     expect((await repo.getProfile())!.activeTripId, isNull);
   });
 
+  test('bill photos: pending until uploaded, path travels with the expense, a new photo drops the stale copy', () async {
+    final id = await repo.createTrip(name: 'T', myName: 'A', otherNames: ['B']);
+    final m = await ids(id);
+    await repo.markShared(id, 'BILL22', 'uid-a');
+    await repo.addExpense(
+      tripId: id,
+      title: 'Hotel',
+      amount: 500000,
+      category: 'stay',
+      paidBy: m['A']!,
+      shares: [NewShare(m['A']!, 250000), NewShare(m['B']!, 250000)],
+    );
+    final eid = (await db.select(db.expenses).getSingle()).id;
+    await repo.setBillPath(eid, '/tmp/bill.jpg');
+    expect((await repo.pendingBillUploads()).map((e) => e.id), [eid]);
+    await repo.setBillRemote(eid, 'tripkhata/$id/bills/$eid-1.jpg');
+    expect(await repo.pendingBillUploads(), isEmpty);
+    final exported = (await repo.exportEntity('expense', eid))!;
+    expect(exported['bill'], 'tripkhata/$id/bills/$eid-1.jpg');
+
+    // Friend's phone: gets the path, downloads later.
+    final db2 = AppDatabase(DatabaseConnection(NativeDatabase.memory(), closeStreamsSynchronously: true));
+    addTearDown(db2.close);
+    final repo2 = TripRepository(db2);
+    await repo2.applyRemoteTrip(id, (await repo.exportTripDoc(id))!);
+    await repo2.applyRemote(id, 'expense', eid, exported);
+    expect((await repo2.getExpense(eid))!.billRemote, exported['bill']);
+    await repo2.setLocalBill(eid, '/tmp/friend-copy.jpg');
+    expect(await db2.select(db2.outbox).get(), isEmpty, reason: 'a downloaded copy is not shared back');
+
+    // The photo is replaced: the old local copy is dropped.
+    await repo2.applyRemote(id, 'expense', eid, {
+      ...exported,
+      'bill': 'tripkhata/$id/bills/$eid-2.jpg',
+      'updatedAt': DateTime.now().add(const Duration(seconds: 5)).millisecondsSinceEpoch,
+    });
+    final e2 = (await repo2.getExpense(eid))!;
+    expect(e2.billPath, isNull);
+    expect(e2.billRemote, 'tripkhata/$id/bills/$eid-2.jpg');
+  });
+
+  test('budget alert level is remembered per trip; eraseAll clears the phone', () async {
+    await repo.saveProfile(name: 'A', upiId: '');
+    final id = await repo.createTrip(name: 'T', myName: 'A', otherNames: ['B'], budget: 1000000);
+    expect((await repo.getTrip(id))!.budgetAlerted, 0);
+    await repo.setBudgetAlerted(id, 80);
+    expect((await repo.getTrip(id))!.budgetAlerted, 80);
+    expect(await db.select(db.outbox).get(), isEmpty);
+    await repo.eraseAll();
+    expect(await db.select(db.trips).get(), isEmpty);
+    expect(await repo.getProfile(), isNull);
+  });
+
   test('CSV export has a header and one row per expense', () async {
     final id = await repo.createTrip(name: 'Goa "2026"', myName: 'A', otherNames: ['B']);
     final m = await ids(id);

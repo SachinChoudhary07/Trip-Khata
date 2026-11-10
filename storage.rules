@@ -1,0 +1,26 @@
+// TripKhata Storage rules (bill photos). The Firebase project is shared with
+// other apps, so DON'T replace the existing rules: paste only the block between
+// "TripKhata: start" and "TripKhata: end" inside your existing
+// `match /b/{bucket}/o { ... }` block.
+// The first time you publish, the console asks to let Storage rules read
+// Firestore (needed for the membership check). Allow it.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ---- TripKhata: start ----
+    match /tripkhata/{tripId}/{file=**} {
+      function tkMember() {
+        return request.auth != null
+          && request.auth.uid in firestore.get(/databases/(default)/documents/tripkhata_trips/$(tripId)).data.memberUids;
+      }
+      allow read, delete: if tkMember();
+      // Bill photos only: images under 5 MB.
+      allow create, update: if tkMember()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // ---- TripKhata: end ----
+
+  }
+}

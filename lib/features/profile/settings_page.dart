@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_info.dart';
 import '../../core/reminders.dart';
 import '../cloud/push_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -126,6 +128,19 @@ class SettingsPage extends StatelessWidget {
                         if (v) await Reminders.requestPermission();
                       },
               ),
+              const Divider(),
+              SwitchListTile(
+                secondary: const Icon(Icons.savings_outlined, color: AppColors.textMuted),
+                title: const Text('Budget alerts'),
+                subtitle: const Text('Notify me at 80% and 100% of a trip’s budget'),
+                value: p?.notifyBudget ?? true,
+                onChanged: p == null
+                    ? null
+                    : (v) async {
+                        await repo.updateSettings(notifyBudget: v);
+                        if (v) await Reminders.requestPermission();
+                      },
+              ),
             ]),
             const SectionLabel('Data', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
             _Group(delay: 180, children: [
@@ -148,10 +163,18 @@ class SettingsPage extends StatelessWidget {
                   await Share.shareXFiles([XFile(f.path, mimeType: 'text/csv')], text: 'TripKhata export');
                 },
               ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.textMuted),
+                title: const Text('Privacy policy'),
+                subtitle: const Text('What TripKhata stores and how to delete it'),
+                trailing: const Icon(Icons.open_in_new, size: 18),
+                onTap: () => launchUrl(Uri.parse(privacyPolicyUrl), mode: LaunchMode.externalApplication),
+              ),
             ]),
             const SizedBox(height: 16),
             const Center(
-              child: Text('TripKhata 0.1 · Made in Indore', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              child: Text('TripKhata $appVersion · Made in Indore', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
             ),
           ]);
         },
