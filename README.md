@@ -68,7 +68,7 @@ TripKhata is built for Indian road trips:
 - **Bill photos** on any expense.
 
 ### Together, in sync
-- **Share a trip with a 6-letter code**. Friends join and pick which member they are.
+- **Invite links per person**. Each friend gets their own link: one tap opens the app and joins them as themselves (Android App Links, no paid service). A 6-letter code works too.
 - **Offline-first sync**: edits queue up on the phone and sync when there's signal.
 - **Push notifications** when a friend adds an expense (*"Rahul added ₹1,500 · your share ₹375"*), even when the app is closed.
 - **Budget alerts** at 80% and 100%, and a daily 9 PM reminder to log the day's spends.
@@ -179,7 +179,6 @@ Every push to `main` runs [`build.yml`](.github/workflows/build.yml):
 
 ## Roadmap
 
-- [ ] Invite links that open the app and join the trip
 - [ ] Battery-optimisation helper for Xiaomi, Oppo, Vivo and similar phones
 - [ ] Play Store release with a private signing key
 - [ ] iOS

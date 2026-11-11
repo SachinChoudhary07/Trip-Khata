@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../db/app_database.dart';
+import '../cloud/invite_links.dart';
 import '../profile/settings_page.dart';
 import '../trips/data/trip_repository.dart';
 import '../trips/presentation/active_trip_sheet.dart';
@@ -34,6 +35,13 @@ class _Shell extends StatefulWidget {
 
 class _ShellState extends State<_Shell> {
   late int _tab = widget.initialTab;
+
+  @override
+  void initState() {
+    super.initState();
+    // An invite link that opened the app waits for home, then opens Join.
+    WidgetsBinding.instance.addPostFrameCallback((_) => DeepLinks.homeReady());
+  }
 
   Future<void> _onAdd() async {
     final state = context.read<TripsCubit>().state;

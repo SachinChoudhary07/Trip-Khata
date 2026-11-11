@@ -1,5 +1,5 @@
 name: tripkhata
-description: Group trip expense splitter. Offline-first, voice entry, route log.
+description: Group trip expense splitter. Offline-first, voice entry, UPI settle-up.
 publish_to: 'none'
 version: 1.0.2+8
 
@@ -25,6 +25,7 @@ dependencies:
   url_launcher: ^6.3.1
   speech_to_text: ^7.0.0
   share_plus: ^10.1.4
+  app_links: ^6.3.3
   flutter_contacts: ^1.1.9+2
   flutter_local_notifications: ^18.0.1
   timezone: ">=0.9.0 <0.11.0"
