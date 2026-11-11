@@ -20,7 +20,7 @@ No signal on the highway? It still works.
 
 <br />
 
-<img src="design/ob1.svg" alt="" width="200" />&nbsp;&nbsp;<img src="design/ob2.svg" alt="" width="200" />&nbsp;&nbsp;<img src="design/ob3.svg" alt="" width="200" />
+<img src="docs/screenshots/banner-6.jpg" alt="TripKhata screens: offline home, Hinglish voice entry, fair splits, UPI settle-up, route check-ins and trip summary" width="100%" />
 
 </div>
 
@@ -36,6 +36,15 @@ TripKhata is built for Indian road trips:
 - **People talk in Hinglish**, so you can add an expense by just saying it.
 - **Not everyone buys everything.** Two friends buy keychains, the third doesn't pay for them.
 - **Everyone has UPI**, so settling up is one tap to GPay or PhonePe.
+
+## Screenshots
+
+| | | |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/02.jpg" alt="Offline-first home" width="260" /> | <img src="docs/screenshots/03.jpg" alt="Hinglish voice entry" width="260" /> | <img src="docs/screenshots/04.jpg" alt="Split only between the people who were in" width="260" /> |
+| **Offline-first.** Everything is saved on the phone. | **Hinglish voice.** Say it, it's saved and split. | **Fair splits.** Only the people who were in pay. |
+| <img src="docs/screenshots/05.jpg" alt="UPI settle-up" width="260" /> | <img src="docs/screenshots/06.jpg" alt="Route check-ins" width="260" /> | <img src="docs/screenshots/07.jpg" alt="Trip summary" width="260" /> |
+| **UPI settle-up.** Fewest payments, one tap to pay. | **Route & stops.** GPS check-ins work offline. | **Summary + PDF.** See where the money went. |
 
 ## Features
 
