@@ -9,8 +9,47 @@ import '../trips/data/trip_repository.dart';
 
 /// Sign in with Google (needed to share trips), or skip and use the app
 /// fully offline. Both lead to profile setup on this phone.
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  bool _busy = false;
+
+  Future<void> _google() async {
+    if (_busy) return;
+    final cloud = context.read<CloudSync>();
+    final repo = context.read<TripRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (!cloud.available) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Google sign-in isn’t available on this phone. Setting you up offline.'),
+      ));
+      context.go('/profile/setup');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final u = await cloud.signInWithGoogle();
+      if (await repo.getProfile() == null && (u.displayName ?? '').isNotEmpty) {
+        await repo.saveProfile(name: u.displayName!);
+      }
+      if (mounted) context.go('/profile/setup');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      final s = e.toString().toLowerCase();
+      if (s.contains('cancel')) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(s.contains('network')
+            ? 'No internet. Try again, or skip and use offline.'
+            : 'Google sign-in didn’t work. Try again, or skip and use offline.'),
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,50 +82,34 @@ class LoginPage extends StatelessWidget {
                         style: TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.5)),
                     const SizedBox(height: 28),
                     FilledButton.icon(
-                      onPressed: () async {
-                        final cloud = context.read<CloudSync>();
-                        final repo = context.read<TripRepository>();
-                        final messenger = ScaffoldMessenger.of(context);
-                        if (!cloud.available) {
-                          messenger.showSnackBar(const SnackBar(
-                            content: Text('Google sign-in isn’t available on this phone. Setting you up offline.'),
-                          ));
-                          context.go('/profile/setup');
-                          return;
-                        }
-                        try {
-                          final u = await cloud.signInWithGoogle();
-                          if (await repo.getProfile() == null && (u.displayName ?? '').isNotEmpty) {
-                            await repo.saveProfile(name: u.displayName!);
-                          }
-                          if (context.mounted) context.go('/profile/setup');
-                        } catch (e) {
-                          final s = e.toString().toLowerCase();
-                          if (s.contains('cancel')) return; // closed the Google sheet
-                          messenger.showSnackBar(SnackBar(
-                            content: Text(s.contains('network')
-                                ? 'No internet. Try again, or skip and use offline.'
-                                : 'Google sign-in didn’t work. Try again, or skip and use offline.'),
-                          ));
-                        }
-                      },
-                      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
-                      icon: Container(
-                        width: 26,
-                        height: 26,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: const Text('G',
-                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)),
+                      onPressed: _busy ? null : _google,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(54),
+                        disabledBackgroundColor: AppColors.primary,
+                        disabledForegroundColor: Colors.white,
                       ),
-                      label: const Text('Continue with Google'),
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                            )
+                          : Container(
+                              width: 26,
+                              height: 26,
+                              alignment: Alignment.center,
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              child: const Text('G',
+                                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 15)),
+                            ),
+                      label: Text(_busy ? 'Signing in…' : 'Continue with Google'),
                     ),
                     const SizedBox(height: 10),
                     const Text('Sign in to share trips with friends. You can also do this later in Settings.',
                         textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4)),
                     const Spacer(),
                     TextButton.icon(
-                      onPressed: () => context.go('/profile/setup'),
+                      onPressed: _busy ? null : () => context.go('/profile/setup'),
                       icon: const Icon(Icons.cloud_off, size: 18),
                       label: const Text('Skip, use offline', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),

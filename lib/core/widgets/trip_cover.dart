@@ -34,9 +34,11 @@ class _TripCoverState extends State<TripCover> with SingleTickerProviderStateMix
   Widget build(BuildContext context) => SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (_, __) => CustomPaint(painter: _CoverPainter(widget.kind, _c.value)),
+        child: ClipRect(
+          child: AnimatedBuilder(
+            animation: _c,
+            builder: (_, __) => CustomPaint(painter: _CoverPainter(widget.kind, _c.value)),
+          ),
         ),
       );
 }

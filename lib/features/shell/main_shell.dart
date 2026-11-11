@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -131,20 +133,7 @@ class _ShellState extends State<_Shell> {
     return Scaffold(
       body: IndexedStack(index: _tab, children: const [HomeBody(), SettingsPage(embedded: true)]),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: SizedBox(
-        width: 64,
-        height: 64,
-        child: FloatingActionButton(
-          heroTag: 'shell-add',
-          onPressed: _onAdd,
-          elevation: 3,
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          shape: const CircleBorder(),
-          tooltip: 'Add',
-          child: const Icon(Icons.add, size: 32),
-        ),
-      ),
+      floatingActionButton: _AddButton(onPressed: _onAdd),
       bottomNavigationBar: BottomAppBar(
         height: 68,
         color: Colors.white,
@@ -158,7 +147,7 @@ class _ShellState extends State<_Shell> {
           Expanded(
             child: _NavItem(
               icon: Icons.home_outlined,
-              activeIcon: Icons.home_rounded,
+              activeIcon: Icons.home,
               label: 'Home',
               active: _tab == 0,
               onTap: () => setState(() => _tab = 0),
@@ -167,8 +156,8 @@ class _ShellState extends State<_Shell> {
           const SizedBox(width: 88),
           Expanded(
             child: _NavItem(
-              icon: Icons.person_outline,
-              activeIcon: Icons.person_rounded,
+              icon: Icons.account_circle_outlined,
+              activeIcon: Icons.account_circle,
               label: 'Profile',
               active: _tab == 1,
               onTap: () => setState(() => _tab = 1),
@@ -180,7 +169,7 @@ class _ShellState extends State<_Shell> {
   }
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.icon,
     required this.activeIcon,
@@ -195,28 +184,139 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => InkResponse(
-        onTap: onTap,
-        radius: 40,
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+  late final AnimationController _pop = AnimationController(vsync: this, duration: const Duration(milliseconds: 460));
+
+  @override
+  void didUpdateWidget(covariant _NavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) _pop.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _pop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.active;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _pop,
+        builder: (context, child) {
+          final scale = _pop.value == 0 ? 1.0 : 1 + 0.14 * math.sin(_pop.value * math.pi);
+          return Transform.scale(scale: scale, child: child);
+        },
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            width: 56,
-            height: 30,
-            decoration: BoxDecoration(
-              color: active ? AppColors.primarySoft : Colors.transparent,
-              borderRadius: BorderRadius.circular(15),
+            duration: const Duration(milliseconds: 340),
+            curve: Curves.easeOutBack,
+            width: 40,
+            height: 32,
+            alignment: Alignment.center,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutBack,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, anim) => ScaleTransition(
+                scale: anim,
+                child: FadeTransition(opacity: anim, child: child),
+              ),
+              child: Icon(
+                active ? widget.activeIcon : widget.icon,
+                key: ValueKey(active),
+                size: 22,
+                color: active ? AppColors.primaryDark : AppColors.textMuted,
+              ),
             ),
-            child: Icon(active ? activeIcon : icon, size: 22, color: active ? AppColors.primaryDark : AppColors.textMuted),
+          ),
+          const SizedBox(height: 4),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            style: TextStyle(
+              fontSize: 12,
+              fontFamily: 'Figtree',
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              color: active ? AppColors.primaryDark : AppColors.textMuted,
+            ),
+            child: Text(widget.label),
           ),
           const SizedBox(height: 3),
-          Text(label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? AppColors.text : AppColors.textMuted,
-              )),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            width: active ? 14 : 0,
+            height: 3,
+            decoration: BoxDecoration(
+              color: active ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ]),
+      ),
+    );
+  }
+}
+
+/// Centre add button. A tap squashes it and gives the plus a quarter turn.
+class _AddButton extends StatefulWidget {
+  const _AddButton({required this.onPressed});
+  final VoidCallback onPressed;
+
+  @override
+  State<_AddButton> createState() => _AddButtonState();
+}
+
+class _AddButtonState extends State<_AddButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    _press.forward(from: 0);
+    widget.onPressed();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 64,
+        height: 64,
+        child: AnimatedBuilder(
+          animation: _press,
+          builder: (context, child) {
+            final wave = math.sin(_press.value * math.pi);
+            return Transform.scale(scale: 1 - 0.08 * wave, child: child);
+          },
+          child: FloatingActionButton(
+            heroTag: 'shell-add',
+            onPressed: _tap,
+            elevation: 3,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: const CircleBorder(),
+            tooltip: 'Add',
+            child: AnimatedBuilder(
+              animation: _press,
+              builder: (context, child) => Transform.rotate(
+                angle: math.sin(_press.value * math.pi) * math.pi / 2,
+                child: child,
+              ),
+              child: const Icon(Icons.add, size: 32),
+            ),
+          ),
+        ),
       );
 }
 

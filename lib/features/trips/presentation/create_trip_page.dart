@@ -28,7 +28,6 @@ class _CreateTripPageState extends State<CreateTripPage> {
   final _to = TextEditingController();
   final _budget = TextEditingController();
   final _myName = TextEditingController(text: 'You');
-  final _person = TextEditingController();
   final List<String> _people = [];
   DateTimeRange? _dates;
   bool _saving = false;
@@ -64,17 +63,10 @@ class _CreateTripPageState extends State<CreateTripPage> {
 
   @override
   void dispose() {
-    for (final c in [_name, _from, _to, _budget, _myName, _person]) {
+    for (final c in [_name, _from, _to, _budget, _myName]) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  void _addPerson() {
-    final n = _person.text.trim();
-    if (n.isEmpty || _people.contains(n)) return;
-    setState(() => _people.add(n));
-    _person.clear();
   }
 
   Future<void> _pickDates() async {
@@ -199,26 +191,6 @@ class _CreateTripPageState extends State<CreateTripPage> {
         if (!_editing) ...[
         const SectionLabel('People', padding: EdgeInsets.fromLTRB(4, 20, 4, 8)),
         TextField(controller: _myName, decoration: const InputDecoration(labelText: 'Your name')),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: TextField(
-              controller: _person,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(hintText: 'Add a friend by name'),
-              onSubmitted: (_) => _addPerson(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 50,
-            child: FilledButton.tonal(
-              onPressed: _addPerson,
-              style: FilledButton.styleFrom(minimumSize: const Size(64, 50)),
-              child: const Icon(Icons.add),
-            ),
-          ),
-        ]),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,

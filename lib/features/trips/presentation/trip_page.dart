@@ -318,53 +318,7 @@ class _TripView extends StatelessWidget {
     final repo = context.read<TripRepository>();
     final tripId = s.trip!.id;
     final already = s.members.map((m) => m.name.toLowerCase()).toSet();
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (c) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.contacts_outlined),
-            title: const Text('From contacts'),
-            onTap: () => Navigator.pop(c, 'contacts'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Type a name'),
-            onTap: () => Navigator.pop(c, 'name'),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: Text('New people start at ₹0. Older expenses are not changed.',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-          ),
-        ]),
-      ),
-    );
-    if (!context.mounted || choice == null) return;
-    List<String>? names;
-    if (choice == 'contacts') {
-      names = await pickContacts(context, already: already);
-    } else {
-      final c = TextEditingController();
-      final n = await showDialog<String>(
-        context: context,
-        builder: (d) => AlertDialog(
-          title: const Text('Add a person'),
-          content: TextField(
-            controller: c,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(hintText: 'Name'),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(d, c.text.trim()), child: const Text('Add')),
-          ],
-        ),
-      );
-      if (n != null && n.isNotEmpty) names = [n];
-    }
+    final names = await pickContacts(context, already: already);
     if (names != null && names.isNotEmpty) await repo.addMembers(tripId, names);
   }
 

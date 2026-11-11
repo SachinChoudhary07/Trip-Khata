@@ -11,7 +11,7 @@ Future<List<String>?> pickContacts(BuildContext context, {Set<String> already = 
   if (!context.mounted) return null;
   if (!ok) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contacts permission denied. You can still add people by name.')),
+      const SnackBar(content: Text('Contacts permission is needed to add people.')),
     );
     return null;
   }

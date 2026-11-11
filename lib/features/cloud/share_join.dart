@@ -204,9 +204,61 @@ class _JoinTripPageState extends State<JoinTripPage> {
   }
 }
 
+void _showBusy(BuildContext context, String label) {
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => PopScope(
+      canPop: false,
+      child: Center(
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 22, 28, 20),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 14),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// Account card for the Profile tab.
 class AccountCard extends StatelessWidget {
   const AccountCard({super.key});
+
+  Future<void> _signIn(BuildContext context, CloudSync cloud) async {
+    final nav = Navigator.of(context, rootNavigator: true);
+    _showBusy(context, 'Signing in…');
+    try {
+      await cloud.signInWithGoogle();
+      nav.pop();
+    } catch (e) {
+      nav.pop();
+      final s = e.toString().toLowerCase();
+      if (s.contains('cancel') || !context.mounted) return;
+      _toast(context, _friendly(e));
+    }
+  }
+
+  Future<void> _signOut(BuildContext context, CloudSync cloud) async {
+    final router = GoRouter.of(context);
+    final nav = Navigator.of(context, rootNavigator: true);
+    _showBusy(context, 'Signing out…');
+    try {
+      await cloud.signOut();
+      nav.pop();
+      router.go('/login');
+    } catch (e) {
+      nav.pop();
+      if (context.mounted) _toast(context, _friendly(e));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,13 +277,7 @@ class AccountCard extends StatelessWidget {
         title: const Text('Sign in with Google'),
         subtitle: const Text('Share trips with friends and back them up'),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () async {
-          try {
-            await cloud.signInWithGoogle();
-          } catch (e) {
-            if (context.mounted) _toast(context, _friendly(e));
-          }
-        },
+        onTap: () => _signIn(context, cloud),
       );
     } else {
       body = Column(mainAxisSize: MainAxisSize.min, children: [
@@ -239,7 +285,7 @@ class AccountCard extends StatelessWidget {
           leading: const Icon(Icons.cloud_done_outlined, color: AppColors.primary),
           title: Text(u.email ?? u.displayName ?? 'Signed in'),
           subtitle: const Text('Shared trips sync automatically'),
-          trailing: TextButton(onPressed: cloud.signOut, child: const Text('Sign out')),
+          trailing: TextButton(onPressed: () => _signOut(context, cloud), child: const Text('Sign out')),
         ),
         const Divider(height: 1),
         ListTile(
@@ -297,14 +343,16 @@ Future<void> _deleteAccount(BuildContext context, CloudSync cloud) async {
   );
   if (ok != true || !context.mounted) return;
   final router = GoRouter.of(context);
+  final nav = Navigator.of(context, rootNavigator: true);
+  _showBusy(context, 'Deleting account…');
   try {
     await cloud.deleteAccount(eraseLocal: eraseLocal);
-    if (eraseLocal) {
-      router.go('/onboarding');
-    } else if (context.mounted) {
-      _toast(context, 'Account deleted');
-    }
+    nav.pop();
+    router.go('/login');
   } catch (e) {
-    if (context.mounted) _toast(context, _friendly(e));
+    nav.pop();
+    final s = e.toString().toLowerCase();
+    if (s.contains('cancel') || !context.mounted) return;
+    _toast(context, _friendly(e));
   }
 }

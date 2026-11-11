@@ -6,6 +6,10 @@ version: 1.0.1+7
 environment:
   sdk: ^3.6.0
 
+# image 4.11+ calls decodeLazy, which needs archive 4.4. pdf 3.12 caps archive below 4.1.
+dependency_overrides:
+  image: 4.10.2
+
 dependencies:
   flutter:
     sdk: flutter

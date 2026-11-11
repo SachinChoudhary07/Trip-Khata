@@ -61,12 +61,18 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
       return;
     }
     setState(() => _saving = true);
-    final repo = context.read<TripRepository>();
-    final first = await repo.getProfile() == null;
-    await repo.saveProfile(name: name, upiId: upi.isEmpty ? null : upi, colorIndex: _color);
-    if (first) await Reminders.setEnabled(true);
-    if (!mounted) return;
-    widget.editing ? context.pop() : context.go('/home');
+    try {
+      final repo = context.read<TripRepository>();
+      final first = await repo.getProfile() == null;
+      await repo.saveProfile(name: name, upiId: upi.isEmpty ? null : upi, colorIndex: _color);
+      if (first) await Reminders.setEnabled(true);
+      if (!mounted) return;
+      widget.editing ? context.pop() : context.go('/home');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Couldn’t save your profile. Try again.')));
+    }
   }
 
   @override
@@ -82,7 +88,25 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-          child: FilledButton(onPressed: _saving ? null : _save, child: Text(widget.editing ? 'Save' : 'Continue')),
+          child: FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              disabledBackgroundColor: AppColors.primary,
+              disabledForegroundColor: Colors.white,
+            ),
+            child: _saving
+                ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                    ),
+                    SizedBox(width: 10),
+                    Text('Saving…'),
+                  ])
+                : Text(widget.editing ? 'Save' : 'Continue'),
+          ),
         ),
       ),
       body: ListView(padding: const EdgeInsets.symmetric(horizontal: 24), children: [
