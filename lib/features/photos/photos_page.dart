@@ -32,7 +32,7 @@ bool isMyPhoto(TripPhoto p, {String? myUid, String? myMemberId}) {
 Future<int> savePhotosToGallery(BuildContext context, String tripId, List<TripPhoto> photos) async {
   final cloud = context.read<CloudSync>();
   try {
-    if (!await Gal.hasPermission(toAlbum: true) && !await Gal.requestPermission(toAlbum: true)) {
+    if (!await Gal.hasAccess(toAlbum: true) && !await Gal.requestAccess(toAlbum: true)) {
       if (context.mounted) _toast(context, 'Allow TripKhata to save photos to your gallery.');
       return 0;
     }

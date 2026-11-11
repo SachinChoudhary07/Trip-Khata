@@ -27,7 +27,12 @@ class PreparedPhoto {
 /// shared). Returns null if the file isn't an image we can read.
 /// Runs in the calling isolate; use [preparePhotoFile] from the UI.
 PreparedPhoto? preparePhoto(Uint8List data) {
-  final decoded = img.decodeImage(data);
+  img.Image? decoded;
+  try {
+    decoded = img.decodeImage(data);
+  } catch (_) {
+    return null; // corrupt or unsupported file
+  }
   if (decoded == null) return null;
   var im = img.bakeOrientation(decoded);
   if (math.max(im.width, im.height) > kPhotoMaxSide) {
