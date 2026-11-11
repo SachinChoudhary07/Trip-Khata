@@ -21,7 +21,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ('Add expenses in seconds',
         'Type it, or just say it out loud. TripKhata fills in the amount, who paid and the category.'),
     ('Works without internet', 'Highways and hill stations rarely have signal. Everything is saved on your phone first.'),
-    ('Remember the whole route', 'Every stop, hotel and dhaba on one map, with what you spent at each of them.'),
+    ('Settle up in a tap', 'See who owes whom with the fewest payments, then pay over UPI with the amount filled in.'),
   ];
 
   @override

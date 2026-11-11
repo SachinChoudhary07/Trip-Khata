@@ -20,7 +20,7 @@ No signal on the highway? It still works.
 
 <br />
 
-<img src="docs/screenshots/banner-6.jpg" alt="TripKhata screens: offline home, Hinglish voice entry, fair splits, UPI settle-up, route check-ins and trip summary" width="100%" />
+<img src="docs/screenshots/banner-6.jpg" alt="TripKhata screens: offline home, Hinglish voice entry, fair splits, UPI settle-up and trip summary" width="100%" />
 
 </div>
 
@@ -43,8 +43,8 @@ TripKhata is built for Indian road trips:
 | :---: | :---: | :---: |
 | <img src="docs/screenshots/02.jpg" alt="Offline-first home" width="260" /> | <img src="docs/screenshots/03.jpg" alt="Hinglish voice entry" width="260" /> | <img src="docs/screenshots/04.jpg" alt="Split only between the people who were in" width="260" /> |
 | **Offline-first.** Everything is saved on the phone. | **Hinglish voice.** Say it, it's saved and split. | **Fair splits.** Only the people who were in pay. |
-| <img src="docs/screenshots/05.jpg" alt="UPI settle-up" width="260" /> | <img src="docs/screenshots/06.jpg" alt="Route check-ins" width="260" /> | <img src="docs/screenshots/07.jpg" alt="Trip summary" width="260" /> |
-| **UPI settle-up.** Fewest payments, one tap to pay. | **Route & stops.** GPS check-ins work offline. | **Summary + PDF.** See where the money went. |
+| <img src="docs/screenshots/05.jpg" alt="UPI settle-up" width="260" /> | <img src="docs/screenshots/07.jpg" alt="Trip summary" width="260" /> | |
+| **UPI settle-up.** Fewest payments, one tap to pay. | **Summary + PDF.** See where the money went. | |
 
 ## Features
 
@@ -64,8 +64,6 @@ TripKhata is built for Indian road trips:
 - **Pay by UPI** with the amount pre-filled (`upi://pay`), then mark it paid.
 
 ### Remember the trip
-- **Check in** at hotels, dhabas and petrol pumps. GPS works offline, and spends are linked to the place.
-- **Route map** on OpenStreetMap with every stop, the distance and what was spent where.
 - **Trip summary** with where the money went, who paid the most and the costliest day. Share it, or export a **PDF** or **CSV**.
 - **Bill photos** on any expense.
 
@@ -110,7 +108,6 @@ flowchart LR
 | App | Flutter, Dart 3, `flutter_bloc` (Cubits), `go_router` |
 | Local data | Drift (SQLite), amounts in paise |
 | Voice | `speech_to_text` (on-device), custom Hinglish parser in Dart, no paid AI API |
-| Maps | `flutter_map` + OpenStreetMap tiles, `geolocator`, no Maps API key |
 | Payments | UPI deep links via `url_launcher`, no payment gateway |
 | Cloud | Firebase Auth (Google sign-in), Firestore, Storage, Cloud Functions, FCM, Crashlytics |
 | Notifications | `flutter_local_notifications` + `firebase_messaging` |
@@ -131,7 +128,6 @@ lib/
     expenses/      add/edit expense, split calculator, expense detail, bill photo
     voice/         speak-to-add screen, Hinglish parser
     settle/        balances, settlement calculator, UPI
-    route/         route map, check-in
     summary/       trip summary, PDF
     cloud/         sync service, share/join, push tokens, account
     widget/        home screen widget bridge

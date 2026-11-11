@@ -156,7 +156,6 @@ class _TripView extends StatelessWidget {
                     child: Row(children: [
                       _Tab(label: 'Expenses', active: true, onTap: () {}),
                       _Tab(label: 'Balances', onTap: () => context.push('/trip/${trip.id}/balances')),
-                      _Tab(label: 'Route', onTap: () => context.push('/trip/${trip.id}/route')),
                       _Tab(label: 'Summary', onTap: () => context.push('/trip/${trip.id}/summary')),
                     ]),
                   ),
@@ -269,7 +268,7 @@ class _TripView extends StatelessWidget {
     final (title, body, button) = switch (action) {
       'delete' => (
           'Delete “${trip.name}”?',
-          'All ${s.expenses.length} expenses, stops and bill photos of this trip will be deleted from this phone. This can’t be undone.',
+          'All ${s.expenses.length} expenses and bill photos of this trip will be deleted from this phone. This can’t be undone.',
           'Delete',
         ),
       'leave' => (

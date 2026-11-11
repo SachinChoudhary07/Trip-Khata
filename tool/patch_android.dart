@@ -28,8 +28,6 @@ void main() {
   const perms = [
     'android.permission.INTERNET',
     'android.permission.RECORD_AUDIO',
-    'android.permission.ACCESS_FINE_LOCATION',
-    'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.READ_CONTACTS',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.RECEIVE_BOOT_COMPLETED',

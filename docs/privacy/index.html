@@ -51,7 +51,6 @@
       <tr><td>Trips, expenses, splits, settlements</td><td>The main job of the app</td><td>Your phone. Shared trips are also stored in Firebase Firestore.</td></tr>
       <tr><td>Google account (name, email, a user ID)</td><td>Only if you sign in, to share and join trips</td><td>Firebase Authentication</td></tr>
       <tr><td>Microphone</td><td>Only while you use "Speak to add"</td><td>Your phone's speech recognition service turns speech into text. TripKhata does not record or store audio. Depending on your phone, the speech service (for example Google's) may process the audio under its own policy.</td></tr>
-      <tr><td>Location</td><td>Only when you tap "Check in here", to pin a hotel, dhaba or stop</td><td>Your phone. In a shared trip, the stop is visible to the people in that trip. No background location.</td></tr>
       <tr><td>Contacts</td><td>Only when you pick friends to add to a trip</td><td>Only the names you pick are saved, as trip members. The rest of your contacts are never read into the app or uploaded.</td></tr>
       <tr><td>Camera and photos</td><td>To attach a photo of a bill</td><td>Your phone. In a shared trip, the photo is uploaded to Firebase Storage so the people in that trip can see it.</td></tr>
       <tr><td>Push token</td><td>To notify you when a friend adds an expense in a shared trip</td><td>Firebase Firestore and Firebase Cloud Messaging</td></tr>

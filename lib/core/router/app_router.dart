@@ -7,8 +7,6 @@ import '../../features/onboarding/login_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
 import '../../features/profile/profile_setup_page.dart';
 import '../../features/profile/settings_page.dart';
-import '../../features/route/check_in_page.dart';
-import '../../features/route/route_page.dart';
 import '../../features/summary/summary_page.dart';
 import '../../features/expenses/presentation/expense_detail_page.dart';
 import '../../features/settle/presentation/balances_page.dart';
@@ -63,14 +61,6 @@ final appRouter = GoRouter(
         GoRoute(
           path: 'edit',
           pageBuilder: (c, s) => _page(CreateTripPage(tripId: s.pathParameters['id']!), s),
-        ),
-        GoRoute(
-          path: 'route',
-          pageBuilder: (c, s) => _page(RoutePage(tripId: s.pathParameters['id']!), s),
-        ),
-        GoRoute(
-          path: 'checkin',
-          pageBuilder: (c, s) => _page(CheckInPage(tripId: s.pathParameters['id']!), s),
         ),
         GoRoute(
           path: 'summary',
