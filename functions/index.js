@@ -4,11 +4,21 @@
 // so the other apps' functions are never touched.
 
 const { onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const functionsV1 = require('firebase-functions/v1');
-const { defineString } = require('firebase-functions/params');
+const { defineString, defineSecret } = require('firebase-functions/params');
+const {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
 const { changeKind, buildMessage } = require('./message');
+const photos = require('./photos');
 
 admin.initializeApp();
 
@@ -19,6 +29,43 @@ const FIRESTORE_REGION = defineString('FIRESTORE_REGION', {
   default: 'asia-south1',
   description: 'Region of your Firestore database (Firebase console → Firestore)',
 });
+
+// Cloudflare R2 for trip photos. Set with:
+//   firebase functions:secrets:set R2_ACCESS_KEY_ID
+//   firebase functions:secrets:set R2_SECRET_ACCESS_KEY
+// and R2_ACCOUNT_ID / R2_BUCKET when the CLI asks on deploy (see docs/CLOUD_SETUP.md).
+const R2_ACCOUNT_ID = defineString('R2_ACCOUNT_ID', { description: 'Cloudflare account ID (R2 overview page)' });
+const R2_BUCKET = defineString('R2_BUCKET', { default: 'tripkhata-photos', description: 'R2 bucket for trip photos' });
+const R2_ACCESS_KEY_ID = defineSecret('R2_ACCESS_KEY_ID');
+const R2_SECRET_ACCESS_KEY = defineSecret('R2_SECRET_ACCESS_KEY');
+const R2_SECRETS = [R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY];
+
+let r2Client;
+function r2() {
+  if (!r2Client) {
+    r2Client = new S3Client({
+      region: 'auto',
+      endpoint: `https://${R2_ACCOUNT_ID.value()}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId: R2_ACCESS_KEY_ID.value(), secretAccessKey: R2_SECRET_ACCESS_KEY.value() },
+    });
+  }
+  return r2Client;
+}
+
+/** Deletes R2 objects in batches of 1000. Never throws. */
+async function deleteR2(keys) {
+  for (let i = 0; i < keys.length; i += 1000) {
+    const chunk = keys.slice(i, i + 1000);
+    try {
+      await r2().send(new DeleteObjectsCommand({
+        Bucket: R2_BUCKET.value(),
+        Delete: { Objects: chunk.map((Key) => ({ Key })), Quiet: true },
+      }));
+    } catch (e) {
+      logger.warn('r2 delete failed', { count: chunk.length, error: String(e) });
+    }
+  }
+}
 
 const TRIPS = 'tripkhata_trips';
 const USERS = 'tripkhata_users';
@@ -113,7 +160,7 @@ exports.tripkhataExpenseNotify = onDocumentWritten(
 
 /** A shared trip was deleted for everyone: remove its data, join code and bill photos. */
 exports.tripkhataTripDeleted = onDocumentDeleted(
-  { document: `${TRIPS}/{tripId}`, region: FIRESTORE_REGION },
+  { document: `${TRIPS}/{tripId}`, region: FIRESTORE_REGION, secrets: R2_SECRETS },
   async (event) => {
     const { tripId } = event.params;
     const trip = event.data ? event.data.data() : {};
@@ -123,6 +170,21 @@ exports.tripkhataTripDeleted = onDocumentDeleted(
     await admin.storage().bucket().deleteFiles({ prefix: `${STORAGE_ROOT}/${tripId}/` }).catch((e) =>
       logger.warn('trip files delete failed', { tripId, error: String(e) }),
     );
+    // Trip photos in R2.
+    try {
+      let token;
+      do {
+        const page = await r2().send(new ListObjectsV2Command({
+          Bucket: R2_BUCKET.value(),
+          Prefix: photos.prefix(tripId),
+          ContinuationToken: token,
+        }));
+        await deleteR2((page.Contents || []).map((o) => o.Key));
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
+    } catch (e) {
+      logger.warn('trip photos delete failed', { tripId, error: String(e) });
+    }
     logger.info('trip deleted', { tripId });
   },
 );
@@ -148,3 +210,51 @@ exports.tripkhataAccountDeleted = functionsV1.auth.user().onDelete(async (user) 
   }
   logger.info('account deleted', { uid, trips: trips.size });
 });
+
+/**
+ * Signed R2 URLs for trip photos. Only people in the trip get them.
+ * Upload URLs are tied to the exact file size and image/jpeg, so a URL can't
+ * be reused for something bigger.
+ */
+exports.tripkhataPhotoUrls = onCall(
+  { region: FIRESTORE_REGION, secrets: R2_SECRETS, memory: '256MiB', maxInstances: 5 },
+  async (req) => {
+    if (!req.auth) throw new HttpsError('unauthenticated', 'Sign in to see trip photos.');
+    let plan;
+    try {
+      plan = photos.planRequest(req.data);
+    } catch (e) {
+      throw new HttpsError('invalid-argument', e.message);
+    }
+    const trip = await admin.firestore().collection(TRIPS).doc(plan.tripId).get();
+    if (!trip.exists || !(trip.data().memberUids || []).includes(req.auth.uid)) {
+      throw new HttpsError('permission-denied', 'You are not in this trip.');
+    }
+    const Bucket = R2_BUCKET.value();
+    const opts = { expiresIn: photos.URL_TTL_SECONDS };
+    const uploads = {};
+    for (const p of plan.puts) {
+      const url = await getSignedUrl(
+        r2(),
+        new PutObjectCommand({ Bucket, Key: p.key, ContentType: 'image/jpeg', ContentLength: p.bytes }),
+        { ...opts, signableHeaders: new Set(['content-type', 'content-length']) },
+      );
+      uploads[p.id] = { ...(uploads[p.id] || {}), [p.kind]: url, key: photos.fullKey(plan.tripId, p.id) };
+    }
+    const downloads = {};
+    for (const key of plan.gets) {
+      downloads[key] = await getSignedUrl(r2(), new GetObjectCommand({ Bucket, Key: key }), opts);
+    }
+    return { uploads, downloads };
+  },
+);
+
+/** A photo was deleted from a trip: remove the files from R2. */
+exports.tripkhataPhotoDeleted = onDocumentDeleted(
+  { document: `${TRIPS}/{tripId}/photos/{photoId}`, region: FIRESTORE_REGION, secrets: R2_SECRETS },
+  async (event) => {
+    const { tripId, photoId } = event.params;
+    await deleteR2([photos.fullKey(tripId, photoId), photos.thumbKey(tripId, photoId)]);
+    logger.info('photo deleted', { tripId, photoId });
+  },
+);

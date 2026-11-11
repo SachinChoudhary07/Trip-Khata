@@ -51,6 +51,14 @@ void main() {
     xml = xml.replaceFirst('</application>', '$receivers\n    </application>');
   }
   xml = _installInviteLinks(xml);
+  // Saving trip photos to the gallery (gal): Android 9 and older need storage access.
+  if (!xml.contains('android.permission.WRITE_EXTERNAL_STORAGE')) {
+    xml = xml.replaceFirst('<application',
+        '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application');
+  }
+  if (!xml.contains('requestLegacyExternalStorage')) {
+    xml = xml.replaceFirst('<application', '<application\n        android:requestLegacyExternalStorage="true"');
+  }
   xml = xml.replaceFirst(RegExp(r'android:label="[^"]*"'), 'android:label="TripKhata"');
   xml = _installWidget(xml);
   f.writeAsStringSync(xml);

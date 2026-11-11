@@ -53,6 +53,7 @@
       <tr><td>Microphone</td><td>Only while you use "Speak to add"</td><td>Your phone's speech recognition service turns speech into text. TripKhata does not record or store audio. Depending on your phone, the speech service (for example Google's) may process the audio under its own policy.</td></tr>
       <tr><td>Contacts</td><td>Only when you pick friends to add to a trip</td><td>Only the names you pick are saved, as trip members. The rest of your contacts are never read into the app or uploaded.</td></tr>
       <tr><td>Camera and photos</td><td>To attach a photo of a bill</td><td>Your phone. In a shared trip, the photo is uploaded to Firebase Storage so the people in that trip can see it.</td></tr>
+      <tr><td>Trip photos</td><td>Only the photos you add to a trip</td><td>Your phone, compressed and with location data (EXIF) removed. In a shared trip, uploaded to Cloudflare R2 so the people in that trip can see and save them. Only the person who added a photo can delete it; deleting it removes it for everyone.</td></tr>
       <tr><td>Push token</td><td>To notify you when a friend adds an expense in a shared trip</td><td>Firebase Firestore and Firebase Cloud Messaging</td></tr>
       <tr><td>Crash reports</td><td>To find and fix crashes</td><td>Firebase Crashlytics: device model, Android version, app version and the error. No trip data.</td></tr>
     </table>
@@ -60,7 +61,7 @@
 
   <section>
     <h2>Who can see your data</h2>
-    <p>Trips that are not shared stay only on your phone. A shared trip can be read and edited by the people who joined it with its code. The data is processed by Google Firebase on our behalf (<a href="https://firebase.google.com/support/privacy">Firebase privacy information</a>). We don't share it with anyone else, unless required by law.</p>
+    <p>Trips that are not shared stay only on your phone. A shared trip can be read and edited by the people who joined it with its code. The data is processed by Google Firebase on our behalf (<a href="https://firebase.google.com/support/privacy">Firebase privacy information</a>), and trip photos by Cloudflare R2 (<a href="https://www.cloudflare.com/privacypolicy/">Cloudflare privacy policy</a>). We don't share it with anyone else, unless required by law.</p>
   </section>
 
   <section>

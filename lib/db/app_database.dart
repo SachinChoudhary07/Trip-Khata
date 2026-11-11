@@ -133,14 +133,43 @@ class Places extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements, Profiles, Places, Outbox])
+/// Trip photos, compressed on the phone. In a shared trip they are uploaded to
+/// Cloudflare R2 and everyone in the trip sees them.
+class TripPhotos extends Table {
+  TextColumn get id => text()();
+  TextColumn get tripId => text().references(Trips, #id, onDelete: KeyAction.cascade)();
+
+  /// Member who added the photo (on the phone that added it).
+  TextColumn get memberId => text().nullable()();
+
+  /// Firebase uid of the person who uploaded it. Only they can delete it.
+  TextColumn get uploaderUid => text().nullable()();
+
+  /// R2 key of the photo once uploaded (the thumbnail is the same key with
+  /// `_t` before `.jpg`). Null while it waits to be uploaded.
+  TextColumn get remoteKey => text().nullable()();
+
+  /// Compressed photo and grid thumbnail on this phone, when present.
+  TextColumn get localPath => text().nullable()();
+  TextColumn get thumbPath => text().nullable()();
+
+  IntColumn get width => integer().withDefault(const Constant(0))();
+  IntColumn get height => integer().withDefault(const Constant(0))();
+  IntColumn get bytes => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Trips, Members, Expenses, ExpenseShares, Settlements, Profiles, Places, Outbox, TripPhotos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   static QueryExecutor _open() => driftDatabase(name: 'tripkhata');
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   /// Migrations must survive being half-applied or a table that was created
   /// with today's columns (createTable uses the current schema), so every
@@ -200,6 +229,9 @@ class AppDatabase extends _$AppDatabase {
                 WHEN (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE trip_id = trips.id) * 10 >= budget * 8 THEN 80
                 ELSE 0 END
             ''');
+          }
+          if (from < 8) {
+            await _createTable(m, tripPhotos);
           }
         },
         beforeOpen: (details) async {

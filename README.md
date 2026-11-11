@@ -66,6 +66,7 @@ TripKhata is built for Indian road trips:
 ### Remember the trip
 - **Trip summary** with where the money went, who paid the most and the costliest day. Share it, or export a **PDF** or **CSV**.
 - **Bill photos** on any expense.
+- **Trip photos** shared with everyone in the trip. Compressed on the phone, stored in Cloudflare R2 (free tier), save one or many to your gallery. Only the person who added a photo can delete it.
 
 ### Together, in sync
 - **Invite links per person**. Each friend gets their own link: one tap opens the app and joins them as themselves (Android App Links, no paid service). A 6-letter code works too.
@@ -93,6 +94,7 @@ flowchart LR
   FS -- expense written --> CF[Cloud Function]
   CF -- FCM --> Friends[Friends' phones]
   Repo -. bill photos .-> ST[(Firebase Storage)]
+  Repo -. trip photos, signed URLs .-> R2[(Cloudflare R2)]
 ```
 
 - **The phone is the boss.** Every write goes to SQLite first. If the trip is shared, the change is also added to an outbox.
@@ -109,7 +111,7 @@ flowchart LR
 | Local data | Drift (SQLite), amounts in paise |
 | Voice | `speech_to_text` (on-device), custom Hinglish parser in Dart, no paid AI API |
 | Payments | UPI deep links via `url_launcher`, no payment gateway |
-| Cloud | Firebase Auth (Google sign-in), Firestore, Storage, Cloud Functions, FCM, Crashlytics |
+| Cloud | Firebase Auth (Google sign-in), Firestore, Storage, Cloud Functions, FCM, Crashlytics; Cloudflare R2 for trip photos |
 | Notifications | `flutter_local_notifications` + `firebase_messaging` |
 | Widget | `home_widget` + a native `RemoteViews` layout |
 | Export | `pdf` + `printing`, CSV, `share_plus` |
@@ -129,6 +131,7 @@ lib/
     voice/         speak-to-add screen, Hinglish parser
     settle/        balances, settlement calculator, UPI
     summary/       trip summary, PDF
+    photos/        trip photos grid, viewer, compression
     cloud/         sync service, share/join, push tokens, account
     widget/        home screen widget bridge
     profile/ onboarding/ splash/ shell/
