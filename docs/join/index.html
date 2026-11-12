@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join a trip on TripKhata</title>
+<meta name="description" content="You've been invited to split a trip's expenses on TripKhata.">
+<meta property="og:title" content="Join my trip on TripKhata">
+<meta property="og:description" content="Split trip expenses together. Works offline, add by voice, settle with UPI.">
+<style>
+  :root { --teal: #0E5E6F; --tint: #E7F1F3; --text: #15181C; --muted: #5B636D; --line: #E4E7EB; --bg: #F5F6F7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--teal); color: #fff; padding: 36px 20px 28px; text-align: center; }
+  header h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+  header p { margin: 0; opacity: .85; }
+  main { max-width: 480px; margin: 0 auto; padding: 0 20px 48px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-top: -14px; }
+  .code { background: var(--tint); border: 2px solid #CFE3E7; border-radius: 14px; text-align: center; padding: 14px; margin: 4px 0 18px; }
+  .code b { display: block; font-size: 32px; letter-spacing: 8px; color: var(--teal); }
+  .code span { font-size: 12px; color: var(--muted); }
+  .btn { display: block; text-align: center; text-decoration: none; font-weight: 700; border-radius: 14px; padding: 15px; margin-top: 10px; }
+  .primary { background: var(--teal); color: #fff; }
+  .secondary { border: 2px solid var(--teal); color: var(--teal); }
+  ol { padding-left: 20px; margin: 18px 0 0; color: var(--muted); }
+  li { margin: 6px 0; }
+  .hidden { display: none; }
+  .err { color: #B42318; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>You’re invited to a trip</h1>
+  <p>Split the expenses together on TripKhata</p>
+</header>
+<main>
+  <div class="card">
+    <div id="ok">
+      <div class="code"><b id="code">······</b><span>Trip code</span></div>
+      <a id="open" class="btn primary" href="#">Open in TripKhata</a>
+      <a class="btn secondary" href="https://github.com/SachinChoudhary07/Trip-Khata/releases/latest">Download the app (Android)</a>
+      <ol>
+        <li>Install TripKhata and sign in with Google.</li>
+        <li>Come back here and tap <b>Open in TripKhata</b>. You’ll join the trip <span id="who">and pick your name</span>.</li>
+        <li>Or open the app → <b>+</b> → <b>Join a friend’s trip</b> and type the code.</li>
+      </ol>
+    </div>
+    <p id="bad" class="err hidden">This invite link looks incomplete. Ask your friend to send it again.</p>
+  </div>
+</main>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var code = (q.get('c') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    var member = q.get('m');
+    if (code.length !== 6) {
+      document.getElementById('ok').classList.add('hidden');
+      document.getElementById('bad').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('code').textContent = code;
+    if (member) document.getElementById('who').textContent = 'as yourself, no code needed';
+    // Chrome on Android: open the app directly, or the Releases page if it isn't installed.
+    var path = location.pathname + location.search;
+    var fallback = encodeURIComponent('https://github.com/SachinChoudhary07/Trip-Khata/releases/latest');
+    document.getElementById('open').href = 'intent://' + location.host + path +
+      '#Intent;scheme=https;package=com.trip_khata.trip_khata;S.browser_fallback_url=' + fallback + ';end';
+  })();
+</script>
+</body>
+</html>

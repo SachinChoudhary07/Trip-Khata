@@ -282,4 +282,52 @@ void main() {
     expect(await repo.getTrip(id), isNull);
     expect(await db.select(db.outbox).get(), isEmpty);
   });
+
+  test('photos: wait for upload only in shared trips, sync as uploader, remote delete drops them', () async {
+    final id = await repo.createTrip(name: 'Manali', myName: 'Sachin', otherNames: ['Rahul']);
+    await repo.addPhoto(
+        id: 'photo-0001', tripId: id, localPath: '/x/a.jpg', thumbPath: '/x/a_t.jpg', width: 2048, height: 1536, bytes: 400000);
+    final me = await (db.select(db.members)..where((x) => x.isMe.equals(true))).getSingle();
+    expect((await repo.getPhoto('photo-0001'))!.memberId, me.id);
+    expect(await repo.pendingPhotoUploads(), isEmpty); // not shared: stays on the phone
+
+    await repo.markShared(id, 'PHO234', 'uid-a');
+    expect((await repo.pendingPhotoUploads()).map((p) => p.id), ['photo-0001']);
+    expect(await repo.exportEntity('photo', 'photo-0001'), isNull); // not in the cloud until uploaded
+
+    await repo.setPhotoUploaded('photo-0001', 'tripkhata/$id/photos/photo-0001.jpg', 'uid-a');
+    expect(await repo.pendingPhotoUploads(), isEmpty);
+    final out = await db.select(db.outbox).get();
+    expect(out.where((o) => o.entity == 'photo').map((o) => o.entityId), ['photo-0001']);
+    final doc = (await repo.exportEntity('photo', 'photo-0001'))!;
+    expect(doc['uploaderUid'], 'uid-a');
+    expect(doc['key'], 'tripkhata/$id/photos/photo-0001.jpg');
+
+    // A friend's photo arrives; it keeps no local file until fetched.
+    await repo.applyRemote(id, 'photo', 'photo-0002', {
+      'key': 'tripkhata/$id/photos/photo-0002.jpg',
+      'uploaderUid': 'uid-b',
+      'width': 1000,
+      'height': 800,
+      'createdAt': 1700000000000,
+    });
+    final friend = (await repo.getPhoto('photo-0002'))!;
+    expect(friend.localPath, isNull);
+    expect(friend.uploaderUid, 'uid-b');
+    await repo.setPhotoFiles('photo-0002', thumbPath: '/x/b_t.jpg');
+    await repo.applyRemote(id, 'photo', 'photo-0002', {'key': 'tripkhata/$id/photos/photo-0002.jpg', 'uploaderUid': 'uid-b'});
+    expect((await repo.getPhoto('photo-0002'))!.thumbPath, '/x/b_t.jpg'); // a remote update keeps the cached file
+
+    await repo.removeRemotePhoto('photo-0002');
+    expect(await repo.getPhoto('photo-0002'), isNull);
+
+    await repo.deletePhoto('photo-0001');
+    expect(await repo.getPhoto('photo-0001'), isNull);
+    final deletes = (await db.select(db.outbox).get()).where((o) => o.entity == 'photo' && o.op == 'delete');
+    expect(deletes.length, 1);
+
+    await repo.addPhoto(id: 'photo-0003', tripId: id, localPath: '/x/c.jpg', thumbPath: '/x/c_t.jpg', width: 1, height: 1, bytes: 1);
+    await repo.deleteTrip(id);
+    expect(await db.select(db.tripPhotos).get(), isEmpty);
+  });
 }

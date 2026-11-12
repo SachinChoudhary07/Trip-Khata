@@ -6,8 +6,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../db/app_database.dart';
 import '../trips/data/trip_repository.dart';
 import 'cloud_sync.dart';
+import 'invite_links.dart';
 
 void _toast(BuildContext context, String m) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
@@ -41,49 +43,94 @@ Future<void> showShareTripSheet(BuildContext context, String tripId, String trip
     if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
   }
   if (code == null || !context.mounted) return;
-  final message = 'Join my trip “$tripName” on TripKhata so we can split expenses together.\n'
-      'Open TripKhata → + → Join a trip, and enter code: $code';
+  final members = await context.read<TripRepository>().getMembers(tripId);
+  if (!context.mounted) return;
+  final others = members.where((m) => !m.isMe).toList();
+  final groupLink = InviteLink(code: code).toString();
+  final groupMessage = 'Join my trip “$tripName” on TripKhata so we can split expenses together.\n'
+      '$groupLink\n\n'
+      'Or open TripKhata → + → Join a trip, and enter code: $code';
+  String memberMessage(Member m) => 'Hi ${m.name}, join my trip “$tripName” on TripKhata. '
+      'This link adds you as ${m.name}:\n'
+      '${InviteLink(code: code!, memberId: m.id)}\n\n'
+      'Don’t have the app? The link has the download.';
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     backgroundColor: Colors.white,
     builder: (c) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Trip shared', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('Friends join with this code and add expenses from their phones. Everything syncs when there’s signal.',
-              style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.45)),
-          const SizedBox(height: 18),
-          GestureDetector(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: code!));
-              _toast(context, 'Code copied');
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(
-                color: AppColors.primaryTint,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primarySoft, width: 2),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(c).size.height * 0.85),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Trip shared', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            const Text('Send each friend their own link. One tap and they’re in the trip as themselves. Everything syncs when there’s signal.',
+                style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.45)),
+            if (others.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              for (final m in others)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(children: [
+                    MemberAvatar(name: m.name, colorIndex: m.colorIndex, size: 36),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(m.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                    if (m.uid != null)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.check_circle, size: 18, color: AppColors.primary),
+                          SizedBox(width: 4),
+                          Text('Joined', style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+                        ]),
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: () => Share.share(memberMessage(m)),
+                        icon: const Icon(Icons.send_outlined, size: 16),
+                        label: const Text('Invite'),
+                      ),
+                  ]),
+                ),
+            ],
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: code!));
+                _toast(context, 'Code copied');
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryTint,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primarySoft, width: 2),
+                ),
+                child: Column(children: [
+                  Text(code!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 8, color: AppColors.primaryDark)),
+                  const SizedBox(height: 2),
+                  const Text('Trip code · tap to copy', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                ]),
               ),
-              child: Column(children: [
-                Text(code!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 8, color: AppColors.primaryDark)),
-                const SizedBox(height: 4),
-                const Text('Tap to copy', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-              ]),
             ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => Share.share(message),
-            icon: const Icon(Icons.ios_share, size: 18),
-            label: const Text('Send to the group'),
-          ),
-        ]),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => Share.share(groupMessage),
+              icon: const Icon(Icons.ios_share, size: 18),
+              label: const Text('Send one link to the group'),
+            ),
+          ]),
+        ),
       ),
     ),
   );
@@ -91,15 +138,34 @@ Future<void> showShareTripSheet(BuildContext context, String tripId, String trip
 
 /// Join someone else's trip with a 6-character code.
 class JoinTripPage extends StatefulWidget {
-  const JoinTripPage({super.key});
+  const JoinTripPage({super.key, this.code, this.memberId});
+
+  /// Filled in from an invite link.
+  final String? code;
+
+  /// From a per-member invite link: join as this member without asking.
+  final String? memberId;
 
   @override
   State<JoinTripPage> createState() => _JoinTripPageState();
 }
 
 class _JoinTripPageState extends State<JoinTripPage> {
-  final _code = TextEditingController();
+  late final _code = TextEditingController(text: widget.code ?? '');
   bool _busy = false;
+
+  bool get _codeOk => _code.text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length == 6;
+
+  @override
+  void initState() {
+    super.initState();
+    // Opened from an invite link and already signed in: join right away.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.code == null || !_codeOk) return;
+      final cloud = context.read<CloudSync>();
+      if (cloud.available && cloud.user != null) _join();
+    });
+  }
 
   @override
   void dispose() {
@@ -117,6 +183,15 @@ class _JoinTripPageState extends State<JoinTripPage> {
       final members = await repo.getMembers(tripId);
       final uid = cloud.user!.uid;
       if (!members.any((m) => m.uid == uid) && mounted) {
+        final invited = widget.memberId == null ? null : members.where((m) => m.id == widget.memberId).firstOrNull;
+        // A per-member link joins you as that member, unless someone already
+        // took it (a forwarded link): then you pick, like with a plain code.
+        if (invited != null && invited.uid == null) {
+          await repo.claimMember(tripId, invited.id, uid);
+          if (mounted) context.pushReplacement('/trip/$tripId');
+          return;
+        }
+        if (invited != null && mounted) _toast(context, '${invited.name} already joined from another phone. Pick who you are.');
         final pick = await showModalBottomSheet<String>(
           context: context,
           showDragHandle: true,
@@ -165,7 +240,7 @@ class _JoinTripPageState extends State<JoinTripPage> {
   @override
   Widget build(BuildContext context) {
     final cloud = context.watch<CloudSync>();
-    final ok = _code.text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').length == 6;
+    final ok = _codeOk;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -180,7 +255,7 @@ class _JoinTripPageState extends State<JoinTripPage> {
         const SizedBox(height: 24),
         TextField(
           controller: _code,
-          autofocus: true,
+          autofocus: widget.code == null,
           textCapitalization: TextCapitalization.characters,
           textAlign: TextAlign.center,
           maxLength: 7,

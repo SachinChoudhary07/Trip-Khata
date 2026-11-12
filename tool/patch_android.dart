@@ -28,8 +28,6 @@ void main() {
   const perms = [
     'android.permission.INTERNET',
     'android.permission.RECORD_AUDIO',
-    'android.permission.ACCESS_FINE_LOCATION',
-    'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.READ_CONTACTS',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.RECEIVE_BOOT_COMPLETED',
@@ -52,12 +50,46 @@ void main() {
   if (!xml.contains('ScheduledNotificationReceiver')) {
     xml = xml.replaceFirst('</application>', '$receivers\n    </application>');
   }
+  xml = _installInviteLinks(xml);
+  // Saving trip photos to the gallery (gal): Android 9 and older need storage access.
+  if (!xml.contains('android.permission.WRITE_EXTERNAL_STORAGE')) {
+    xml = xml.replaceFirst('<application',
+        '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application');
+  }
+  if (!xml.contains('requestLegacyExternalStorage')) {
+    xml = xml.replaceFirst('<application', '<application\n        android:requestLegacyExternalStorage="true"');
+  }
   xml = xml.replaceFirst(RegExp(r'android:label="[^"]*"'), 'android:label="TripKhata"');
   xml = _installWidget(xml);
   f.writeAsStringSync(xml);
   _patchGradle();
   _patchFirebaseGradle();
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');
+}
+
+/// Invite links (https://sachinchoudhary07.github.io/Trip-Khata/join/...) open
+/// the app. autoVerify makes Android check the domain's
+/// /.well-known/assetlinks.json, so the link opens TripKhata without asking.
+/// Flutter's own deep linking is turned off: the app_links package handles
+/// the link, so go_router never sees the raw web path.
+String _installInviteLinks(String xml) {
+  if (xml.contains('/Trip-Khata/join')) return xml;
+  const filter = '''
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="sachinchoudhary07.github.io" android:pathPrefix="/Trip-Khata/join" />
+            </intent-filter>
+''';
+  final main = xml.indexOf('.MainActivity');
+  final end = main < 0 ? -1 : xml.indexOf('</activity>', main);
+  if (end < 0) {
+    stderr.writeln('MainActivity not found: invite links not added.');
+    return xml;
+  }
+  return xml.replaceRange(end, end, '\n$filter        ');
 }
 
 /// flutter_local_notifications needs core library desugaring.

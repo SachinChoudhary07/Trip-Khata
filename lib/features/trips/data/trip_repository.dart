@@ -67,6 +67,11 @@ class TripRepository {
     return id == null ? null : getTrip(id);
   }
 
+  Stream<List<TripPhoto>> watchPhotos(String tripId) => (_db.select(_db.tripPhotos)
+        ..where((p) => p.tripId.equals(tripId))
+        ..orderBy([(p) => OrderingTerm.desc(p.createdAt)]))
+      .watch();
+
   Stream<List<Place>> watchPlaces(String tripId) => (_db.select(_db.places)
         ..where((p) => p.tripId.equals(tripId))
         ..orderBy([(p) => OrderingTerm.asc(p.visitedAt)]))
@@ -375,6 +380,9 @@ class TripRepository {
   /// Deletes a trip and everything in it (also its pending sync changes).
   Future<void> deleteTrip(String tripId) async {
     if ((await getProfile())?.activeTripId == tripId) await setActiveTrip(null);
+    for (final p in await (_db.select(_db.tripPhotos)..where((x) => x.tripId.equals(tripId))).get()) {
+      _deletePhotoFiles(p);
+    }
     final bills = await (_db.select(_db.expenses)..where((e) => e.tripId.equals(tripId) & e.billPath.isNotNull())).get();
     for (final e in bills) {
       try {
@@ -391,6 +399,7 @@ class TripRepository {
         await (_db.delete(_db.expenses)..where((e) => e.tripId.equals(tripId))).go();
         await (_db.delete(_db.settlements)..where((s) => s.tripId.equals(tripId))).go();
         await (_db.delete(_db.places)..where((p) => p.tripId.equals(tripId))).go();
+        await (_db.delete(_db.tripPhotos)..where((p) => p.tripId.equals(tripId))).go();
         await (_db.delete(_db.members)..where((m) => m.tripId.equals(tripId))).go();
         await (_db.delete(_db.trips)..where((t) => t.id.equals(tripId))).go();
       });
@@ -410,6 +419,88 @@ class TripRepository {
           amount: amount,
         ));
     await _queue(tripId, 'settlement', id);
+  }
+
+  // ---------- photos ----------
+
+  /// Saves a photo that was compressed into the app's folder. It is uploaded
+  /// later if the trip is shared (see [pendingPhotoUploads]).
+  Future<String> addPhoto({
+    required String id,
+    required String tripId,
+    required String localPath,
+    required String thumbPath,
+    required int width,
+    required int height,
+    required int bytes,
+  }) async {
+    final me = await (_db.select(_db.members)..where((m) => m.tripId.equals(tripId) & m.isMe.equals(true)))
+        .getSingleOrNull();
+    await _db.into(_db.tripPhotos).insert(TripPhotosCompanion.insert(
+          id: id,
+          tripId: tripId,
+          memberId: Value(me?.id),
+          localPath: Value(localPath),
+          thumbPath: Value(thumbPath),
+          width: Value(width),
+          height: Value(height),
+          bytes: Value(bytes),
+        ));
+    return id;
+  }
+
+  Future<TripPhoto?> getPhoto(String id) =>
+      (_db.select(_db.tripPhotos)..where((p) => p.id.equals(id))).getSingleOrNull();
+
+  /// Photos of shared trips that haven't been uploaded yet, oldest first.
+  Future<List<TripPhoto>> pendingPhotoUploads() async {
+    final q = _db.select(_db.tripPhotos).join([innerJoin(_db.trips, _db.trips.id.equalsExp(_db.tripPhotos.tripId))])
+      ..where(_db.tripPhotos.remoteKey.isNull() & _db.trips.joinCode.isNotNull())
+      ..orderBy([OrderingTerm.asc(_db.tripPhotos.createdAt)]);
+    return (await q.get()).map((r) => r.readTable(_db.tripPhotos)).toList();
+  }
+
+  /// Uploaded to R2: record where it is and share it with the trip.
+  Future<void> setPhotoUploaded(String id, String key, String uid) async {
+    final p = await getPhoto(id);
+    if (p == null) return;
+    await (_db.update(_db.tripPhotos)..where((x) => x.id.equals(id)))
+        .write(TripPhotosCompanion(remoteKey: Value(key), uploaderUid: Value(uid)));
+    await _queue(p.tripId, 'photo', id);
+  }
+
+  Future<void> setPhotoFiles(String id, {String? localPath, String? thumbPath}) =>
+      (_db.update(_db.tripPhotos)..where((x) => x.id.equals(id))).write(TripPhotosCompanion(
+        localPath: localPath == null ? const Value.absent() : Value(localPath),
+        thumbPath: thumbPath == null ? const Value.absent() : Value(thumbPath),
+      ));
+
+  /// Deletes a photo you added. Friends' phones drop it when the cloud copy
+  /// goes, and a Cloud Function removes the files from R2.
+  Future<void> deletePhoto(String id) async {
+    final p = await getPhoto(id);
+    if (p == null) return;
+    _deletePhotoFiles(p);
+    await (_db.delete(_db.tripPhotos)..where((x) => x.id.equals(id))).go();
+    if (p.remoteKey != null) await _queue(p.tripId, 'photo', id, op: 'delete');
+  }
+
+  /// Someone deleted the photo in the cloud: drop it here too. Never queues.
+  Future<void> removeRemotePhoto(String id) async {
+    final p = await getPhoto(id);
+    if (p == null) return;
+    _deletePhotoFiles(p);
+    await (_db.delete(_db.tripPhotos)..where((x) => x.id.equals(id))).go();
+  }
+
+  void _deletePhotoFiles(TripPhoto p) {
+    for (final path in [p.localPath, p.thumbPath]) {
+      if (path == null) continue;
+      try {
+        final f = File(path);
+        if (f.existsSync()) f.deleteSync();
+      } catch (_) {}
+    }
   }
 
   // ---------- cloud sync support ----------
@@ -539,6 +630,19 @@ class TripRepository {
           'amount': s.amount,
           'paidAt': s.paidAt.millisecondsSinceEpoch,
         };
+      case 'photo':
+        final ph = await getPhoto(id);
+        if (ph == null || ph.remoteKey == null) return null;
+        return {
+          'id': ph.id,
+          'key': ph.remoteKey,
+          'uploaderUid': ph.uploaderUid,
+          'memberId': ph.memberId,
+          'width': ph.width,
+          'height': ph.height,
+          'bytes': ph.bytes,
+          'createdAt': ph.createdAt.millisecondsSinceEpoch,
+        };
       case 'place':
         final p = await (_db.select(_db.places)..where((x) => x.id.equals(id))).getSingleOrNull();
         if (p == null) return null;
@@ -642,6 +746,20 @@ class TripRepository {
               toMember: Value(d['toMember'] as String? ?? ''),
               amount: Value(_int(d['amount'])),
               paidAt: Value(_ms(d['paidAt']) ?? DateTime.now()),
+            ));
+      case 'photo':
+        final key = d['key'] as String?;
+        if (key == null) return;
+        await _db.into(_db.tripPhotos).insertOnConflictUpdate(TripPhotosCompanion(
+              id: Value(id),
+              tripId: Value(tripId),
+              memberId: Value(d['memberId'] as String?),
+              uploaderUid: Value(d['uploaderUid'] as String?),
+              remoteKey: Value(key),
+              width: Value(_int(d['width'])),
+              height: Value(_int(d['height'])),
+              bytes: Value(_int(d['bytes'])),
+              createdAt: Value(_ms(d['createdAt']) ?? DateTime.now()),
             ));
       case 'place':
         await _db.into(_db.places).insertOnConflictUpdate(PlacesCompanion(

@@ -15,6 +15,7 @@ import '../../core/reminders.dart';
 import '../../core/utils/money.dart';
 import '../../db/app_database.dart';
 import '../trips/data/trip_repository.dart';
+import 'photo_sync.dart';
 import 'push_service.dart';
 
 /// Firebase settings for the `com.trip_khata.trip_khata` Android app in the
@@ -43,6 +44,9 @@ class CloudConfig {
   /// Bill photos live under tripkhata/{tripId}/bills/ in Firebase Storage.
   static const storageRoot = 'tripkhata';
 
+  /// Region of the Cloud Functions (same as the Firestore database).
+  static const functionsRegion = String.fromEnvironment('FUNCTIONS_REGION', defaultValue: 'asia-south1');
+
   static bool get present => apiKey.isNotEmpty && appId.isNotEmpty && projectId.isNotEmpty;
 }
 
@@ -64,6 +68,9 @@ class CloudSync extends ChangeNotifier {
   CloudSync(this._repo);
   final TripRepository _repo;
 
+  /// Trip photos in Cloudflare R2.
+  late final photos = PhotoSync(this, _repo);
+
   bool _available = false;
   bool get available => _available;
   User? get user => _available ? FirebaseAuth.instance.currentUser : null;
@@ -74,7 +81,13 @@ class CloudSync extends ChangeNotifier {
   final Map<String, List<StreamSubscription<Object?>>> _tripSubs = {};
   bool _pushing = false;
 
-  static const _subcollections = {'member': 'members', 'expense': 'expenses', 'settlement': 'settlements', 'place': 'places'};
+  static const _subcollections = {
+    'member': 'members',
+    'expense': 'expenses',
+    'settlement': 'settlements',
+    'place': 'places',
+    'photo': 'photos',
+  };
 
   FirebaseFirestore get _fs => FirebaseFirestore.instance;
   DocumentReference<Map<String, dynamic>> _tripDoc(String id) => _fs.collection(CloudConfig.tripsCollection).doc(id);
@@ -183,6 +196,7 @@ class CloudSync extends ChangeNotifier {
     unawaited(batch.commit());
     _ensureCode(tripId, code); // queued after the trip, so the rules can see you're a member
     _listenTrip(tripId);
+    unawaited(photos.uploadPending()); // photos added before the trip was shared
     return code;
   }
 
@@ -252,6 +266,7 @@ class CloudSync extends ChangeNotifier {
       final code = (await _repo.getTrip(tripId))?.joinCode;
       if (code != null) unawaited(_codeDoc(code).delete().catchError((Object e) => debugPrint('Code delete failed: $e')));
       for (final sub in _subcollections.values) {
+        if (sub == 'photos') continue; // removed with the trip by the Cloud Function
         try {
           final snap = await ref.collection(sub).get();
           final batch = _fs.batch();
@@ -366,6 +381,7 @@ class CloudSync extends ChangeNotifier {
       }
     });
     unawaited(uploadPendingBills());
+    unawaited(photos.uploadPending());
   }
 
   void _stopSync() {
@@ -394,6 +410,13 @@ class CloudSync extends ChangeNotifier {
         }
         final ref = _tripDoc(r.tripId).collection(_subcollections[r.entity]!).doc(r.entityId);
         final data = r.op == 'delete' ? null : await _repo.exportEntity(r.entity, r.entityId);
+        if (r.entity == 'photo') {
+          // Only the uploader may write a photo (rules), so keep it out of the
+          // batch: a denied photo must not undo everyone's expenses.
+          final write = data == null ? ref.delete() : ref.set(data);
+          unawaited(write.catchError((Object e) => debugPrint('Photo sync failed: $e')));
+          continue;
+        }
         if (data == null) {
           if (r.entity == 'expense') {
             batch.set(
@@ -435,7 +458,10 @@ class CloudSync extends ChangeNotifier {
         firstSnapshot = false;
         final activity = <_Activity>[];
         for (final c in snap.docChanges) {
-          if (c.type == DocumentChangeType.removed) continue;
+          if (c.type == DocumentChangeType.removed) {
+            if (e.key == 'photo') await _repo.removeRemotePhoto(c.doc.id);
+            continue;
+          }
           final d = c.doc.data();
           if (d == null) continue;
           if (e.key == 'expense') {

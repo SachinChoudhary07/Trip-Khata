@@ -60,6 +60,47 @@ Three things must be done once in the Firebase console:
      https://sachinchoudhary07.github.io/Trip-Khata/privacy/ (use this URL in Play Console,
      and `…/privacy/#delete` as the account deletion URL).
 
+6. **Trip photos (Cloudflare R2) and invite links**
+   Photos are stored in Cloudflare R2: 10 GB, 1 million uploads and 10 million downloads
+   a month free, and no fee for downloads. The bucket is private; the
+   `tripkhataPhotoUrls` function gives signed URLs only to people in the trip.
+
+   1. **Cloudflare dashboard → R2 → Get started.** R2 asks for a payment method even
+      for the free tier; you're billed only above the free limits.
+   2. **Create bucket** `tripkhata-photos`, location *Asia-Pacific*, storage class
+      **Standard** (the free tier doesn't cover Infrequent Access). Keep public access off.
+   3. **R2 → Manage API tokens → Create API token**: permission *Object Read & Write*,
+      only the `tripkhata-photos` bucket. Copy the Access Key ID and Secret Access Key
+      (shown once). Copy the **Account ID** from the R2 overview page.
+   4. Save the keys as Firebase secrets and deploy:
+
+      ```bash
+      firebase functions:secrets:set R2_ACCESS_KEY_ID --project flutter-apps-975a6
+      firebase functions:secrets:set R2_SECRET_ACCESS_KEY --project flutter-apps-975a6
+      cd functions && npm ci && cd ..
+      firebase deploy --only functions:tripkhata --project flutter-apps-975a6
+      ```
+
+      The deploy asks for `R2_ACCOUNT_ID` and `R2_BUCKET` (`tripkhata-photos`) once and
+      saves them in `functions/.env.flutter-apps-975a6`. Say yes if it asks to enable
+      Secret Manager.
+   5. **Firestore → Rules**: replace the TripKhata block with the new one from
+      [`firestore.rules`](../firestore.rules) and Publish. Photos can be deleted only
+      by the person who added them.
+   6. The app calls the function in `asia-south1`. If your `FIRESTORE_REGION` is
+      different, build with `--dart-define=FUNCTIONS_REGION=<region>`.
+
+   Photos are compressed on the phone (longest side 2048px, ~300–600 KB) with a ~30 KB
+   thumbnail for the grid, and EXIF (including GPS) is removed. 10 GB holds roughly
+   20,000 photos. Deleting a photo or a shared trip removes its files from R2.
+
+   **Invite links** (`https://sachinchoudhary07.github.io/Trip-Khata/join/?c=CODE&m=MEMBER`)
+   open the app through Android App Links. They need
+   `https://sachinchoudhary07.github.io/.well-known/assetlinks.json`, served by the
+   portfolio repo (`public/.well-known/assetlinks.json`), listing
+   `com.trip_khata.trip_khata` with the SHA-256 above. Add the release key's SHA-256
+   there too if you ever switch keys.
+
 ---
 
 ## Using your own Firebase project or a private release key later
@@ -122,8 +163,8 @@ Uninstall the old APK first: it was signed with a different (debug) key.
   tap the cloud button on the trip and share it.
 - Edits to a shared trip are queued and pushed; with no signal, Firestore holds them and
   sends them later. Friends' edits arrive through live listeners.
-- Friends join with the 6-character code (+ → Join a friend's trip), pick which member
-  they are, and their balance shows as "You".
+- Friends join from their invite link (one tap, joined as themselves) or with the
+  6-character code (+ → Join a friend's trip), where they pick which member they are.
 - Conflicts: the latest edit to an expense wins. Deleted expenses are kept as a
   `deleted` marker so every phone removes them.
 

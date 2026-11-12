@@ -26,7 +26,20 @@ service cloud.firestore {
       allow delete: if tkSignedIn() && resource.data.ownerUid == request.auth.uid;
 
       match /{sub}/{docId} {
-        allow read, write: if tkSignedIn() && request.auth.uid in tkTrip(tripId).data.memberUids;
+        allow read: if tkSignedIn() && request.auth.uid in tkTrip(tripId).data.memberUids;
+        allow write: if sub != 'photos' && tkSignedIn() && request.auth.uid in tkTrip(tripId).data.memberUids;
+      }
+
+      // Photos: anyone in the trip adds their own; only the person who
+      // uploaded a photo can change or delete it.
+      match /photos/{photoId} {
+        allow create: if tkSignedIn()
+          && request.auth.uid in tkTrip(tripId).data.memberUids
+          && request.resource.data.uploaderUid == request.auth.uid;
+        allow update: if tkSignedIn()
+          && resource.data.uploaderUid == request.auth.uid
+          && request.resource.data.uploaderUid == request.auth.uid;
+        allow delete: if tkSignedIn() && resource.data.uploaderUid == request.auth.uid;
       }
     }
 
