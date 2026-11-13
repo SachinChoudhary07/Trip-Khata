@@ -20,7 +20,7 @@ No signal on the highway? It still works.
 
 <br />
 
-<img src="docs/screenshots/banner-6.jpg" alt="TripKhata screens: offline home, Hinglish voice entry, fair splits, UPI settle-up and trip summary" width="100%" />
+<img src="docs/screenshots/banner.jpg" alt="TripKhata screens: offline home, fair splits, UPI settle-up and trip summary" width="100%" />
 
 </div>
 
