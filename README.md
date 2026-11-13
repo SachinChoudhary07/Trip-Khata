@@ -20,7 +20,7 @@ No signal on the highway? It still works.
 
 <br />
 
-<img src="docs/screenshots/banner.jpg" alt="TripKhata screens: offline home, fair splits, UPI settle-up and trip summary" width="100%" />
+<img src="docs/screenshots/banner.jpg" alt="TripKhata screens: offline home, fair splits, trip photos, UPI settle-up and trip summary" width="100%" />
 
 </div>
 
@@ -39,12 +39,12 @@ TripKhata is built for Indian road trips:
 
 ## Screenshots
 
-| | |
-| :---: | :---: |
-| <img src="docs/screenshots/02.jpg" alt="Offline-first home" width="300" /> | <img src="docs/screenshots/03.jpg" alt="Split only between the people who were in" width="300" /> |
-| **Offline-first.** Everything is saved on the phone. | **Fair splits.** Only the people who were in pay. |
-| <img src="docs/screenshots/04.jpg" alt="UPI settle-up" width="300" /> | <img src="docs/screenshots/05.jpg" alt="Trip summary" width="300" /> |
-| **UPI settle-up.** Fewest payments, one tap to pay. | **Summary + PDF.** See where the money went. |
+| | | |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/02.jpg" alt="Offline-first home" width="260" /> | <img src="docs/screenshots/03.jpg" alt="Split only between the people who were in" width="260" /> | <img src="docs/screenshots/04.jpg" alt="Trip photos" width="260" /> |
+| **Offline-first.** Everything is saved on the phone. | **Fair splits.** Only the people who were in pay. | **Trip photos.** Everyone's photos in one place. |
+| <img src="docs/screenshots/05.jpg" alt="UPI settle-up" width="260" /> | <img src="docs/screenshots/06.jpg" alt="Trip summary" width="260" /> | |
+| **UPI settle-up.** Fewest payments, one tap to pay. | **Summary + PDF.** See where the money went. | |
 
 ## Features
 
