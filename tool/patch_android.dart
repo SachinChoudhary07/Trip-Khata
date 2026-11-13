@@ -64,6 +64,7 @@ void main() {
   f.writeAsStringSync(xml);
   _patchGradle();
   _patchFirebaseGradle();
+  _skipPluginLintVital();
   stdout.writeln('AndroidManifest.xml patched for UPI and speech.');
 }
 
@@ -90,6 +91,19 @@ String _installInviteLinks(String xml) {
     return xml;
   }
   return xml.replaceRange(end, end, '\n$filter        ');
+}
+
+/// Release builds run "lintVital" on every plugin. Android lint crashes on
+/// image_picker_android's ExifDataCopier.java (NoSuchMethodError inside lint
+/// itself), which fails assembleRelease. Lint does not change the APK, so skip
+/// those tasks. Safe to run more than once.
+void _skipPluginLintVital() {
+  final kts = File('android/build.gradle.kts');
+  final f = kts.existsSync() ? kts : File('android/build.gradle');
+  if (!f.existsSync()) return;
+  final g = f.readAsStringSync();
+  if (g.contains('tripkhata:skip-lint-vital')) return;
+  f.writeAsStringSync('$g\n// tripkhata:skip-lint-vital\nsubprojects {\n    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }\n}\n');
 }
 
 /// flutter_local_notifications needs core library desugaring.
